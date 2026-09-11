@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<style>
+  :root {
+    --bg: #ffffff;
+    --fg: #1f2328;
+    --muted: #6b7280;
+    --line: #e5e7eb;
+    --accent: #d93025;
+    --ok: #1a7f37;
+    --chip: #f6f7f9;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1e1f22;
+      --fg: #e8eaed;
+      --muted: #9aa0a6;
+      --line: #34363a;
+      --accent: #f2867c;
+      --ok: #6cc17f;
+      --chip: #292b2f;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    width: 340px;
+    margin: 0;
+    padding: 14px;
+    font-family: "Pretendard", "Malgun Gothic", -apple-system, system-ui, sans-serif;
+    font-size: 13px;
+    color: var(--fg);
+    background: var(--bg);
+  }
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  h1 { font-size: 15px; margin: 0; font-weight: 700; }
+  .sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+  /* 토글 스위치 */
+  .switch { position: relative; display: inline-block; width: 38px; height: 22px; flex: none; }
+  .switch input { opacity: 0; width: 0; height: 0; }
+  .slider {
+    position: absolute; inset: 0; cursor: pointer;
+    background: #c4c7cc; border-radius: 22px; transition: .18s;
+  }
+  .slider:before {
+    content: ""; position: absolute; height: 16px; width: 16px; left: 3px; top: 3px;
+    background: #fff; border-radius: 50%; transition: .18s;
+  }
+  .switch input:checked + .slider { background: var(--accent); }
+  .switch input:checked + .slider:before { transform: translateX(16px); }
+
+  .row { display: flex; gap: 6px; }
+  input[type="text"], input[type="password"], textarea {
+    width: 100%; padding: 8px 10px; border: 1px solid var(--line);
+    border-radius: 8px; background: var(--bg); color: var(--fg);
+    font-family: inherit; font-size: 13px;
+  }
+  input:focus, textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  textarea { resize: vertical; min-height: 58px; }
+  button {
+    padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px;
+    background: var(--chip); color: var(--fg); font-family: inherit;
+    font-size: 13px; cursor: pointer; white-space: nowrap;
+  }
+  button:hover { border-color: var(--muted); }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button.primary:hover { filter: brightness(1.06); }
+  button.allow { background: var(--ok); border-color: var(--ok); color: #fff; }
+  button.allow:hover { filter: brightness(1.06); }
+
+  .secHead {
+    display: flex; align-items: baseline; gap: 6px;
+    margin: 14px 0 6px; padding-top: 12px; border-top: 1px solid var(--line);
+  }
+  .secHead:first-of-type { border-top: none; padding-top: 0; margin-top: 4px; }
+  .secHead b { font-size: 12.5px; }
+  .secHead span { font-size: 11px; color: var(--muted); }
+
+  ul { list-style: none; margin: 8px 0 0; padding: 0; overflow-y: auto; }
+  #list { max-height: 150px; }
+  #allowList { max-height: 110px; }
+  li {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 7px 10px; background: var(--chip); border-radius: 8px; margin-bottom: 5px;
+    word-break: break-all;
+  }
+  li.allowItem { border-left: 3px solid var(--ok); }
+  li .del {
+    border: none; background: transparent; color: var(--muted);
+    font-size: 15px; padding: 0 4px; line-height: 1;
+  }
+  li .del:hover { color: var(--accent); }
+  .empty {
+    color: var(--muted); text-align: center; padding: 14px 0; font-size: 12px;
+    background: transparent !important; justify-content: center; border-left: none !important;
+  }
+
+  details { margin-top: 14px; border-top: 1px solid var(--line); padding-top: 10px; }
+  summary { cursor: pointer; font-weight: 600; font-size: 12.5px; }
+  .field { margin-top: 9px; }
+  .field label { display: block; font-size: 11.5px; color: var(--muted); margin-bottom: 4px; }
+  .hint { font-size: 11px; color: var(--muted); margin-top: 6px; line-height: 1.5; }
+  .msg { font-size: 11.5px; margin-top: 6px; min-height: 15px; line-height: 1.4; }
+  .msg.ok { color: var(--ok); }
+  .msg.err { color: var(--accent); }
+  .msg.warn { color: #b26a00; }
+  @media (prefers-color-scheme: dark) { .msg.warn { color: #e0a458; } }
+  .hidden { display: none !important; }
+
+  pre.dump {
+    background: var(--chip); border-radius: 8px; padding: 9px 10px; margin: 8px 0 0;
+    font-family: ui-monospace, Consolas, monospace; font-size: 10.5px; line-height: 1.6;
+    white-space: pre-wrap; word-break: break-all; max-height: 150px; overflow-y: auto;
+    color: var(--fg);
+  }
+  .banner {
+    background: #fdeceb; border: 1px solid var(--accent); color: #a5251c;
+    border-radius: 8px; padding: 8px 10px; font-size: 11.5px; margin-bottom: 10px;
+    line-height: 1.5;
+  }
+  @media (prefers-color-scheme: dark) {
+    .banner { background: #3a2624; color: #f2a29a; }
+  }
+  .banner.warnBanner {
+    background: #fff8e6; border-color: #d99100; color: #8a5a00;
+  }
+  @media (prefers-color-scheme: dark) {
+    .banner.warnBanner { background: #33290f; border-color: #a8760f; color: #e6bb6a; }
+  }
+  .banner button { padding: 6px 10px; font-size: 12px; }
+
+  .rowRight { display: flex; align-items: center; gap: 5px; flex: none; }
+  button.chip {
+    padding: 3px 8px; font-size: 11px; border-radius: 999px;
+    background: var(--accent); border-color: var(--accent); color: #fff;
+  }
+  button.chip:hover { filter: brightness(1.08); }
+
+  #lock { text-align: center; padding: 22px 4px; }
+  #lock .lockIcon { font-size: 30px; }
+  #lock p { color: var(--muted); font-size: 12px; margin: 8px 0 14px; }
+</style>
+</head>
+<body>
+
+<!-- 잠금 화면 -->
+<section id="lock" class="hidden">
+  <div class="lockIcon">🔒</div>
+  <p>설정이 잠겨 있습니다.<br>비밀번호를 입력하세요.</p>
+  <div class="row">
+    <input type="password" id="unlockInput" placeholder="비밀번호" autocomplete="off" />
+    <button class="primary" id="unlockBtn">해제</button>
+  </div>
+  <div class="msg err" id="lockMsg"></div>
+</section>
+
+<!-- 메인 화면 -->
+<section id="main" class="hidden">
+  <div id="errorBanner" class="banner hidden"></div>
+  <div id="permBanner" class="banner warnBanner hidden"></div>
+  <header>
+    <div>
+      <h1>딴짓 차단기</h1>
+      <div class="sub" id="statusText">차단 작동 중</div>
+    </div>
+    <label class="switch" title="차단 켜기/끄기">
+      <input type="checkbox" id="enabledToggle" />
+      <span class="slider"></span>
+    </label>
+  </header>
+
+  <div class="secHead">
+    <b>차단 목록</b><span>서브도메인 포함</span>
+  </div>
+  <div class="row">
+    <input type="text" id="domainInput" placeholder="예: naver.com" autocomplete="off" />
+    <button class="primary" id="addBtn">차단</button>
+  </div>
+  <div class="msg" id="addMsg"></div>
+  <ul id="list"></ul>
+
+  <div class="secHead">
+    <b>예외 목록</b><span>차단보다 우선 허용</span>
+  </div>
+  <div class="row">
+    <input type="text" id="allowInput" placeholder="예: map.naver.com" autocomplete="off" />
+    <button class="allow" id="allowAddBtn">허용</button>
+  </div>
+  <div class="msg" id="allowMsg"></div>
+  <ul id="allowList"></ul>
+
+  <details id="settings">
+    <summary>설정</summary>
+
+    <div class="field">
+      <label for="bpEmoji">차단 페이지 이모지</label>
+      <input type="text" id="bpEmoji" maxlength="4" />
+    </div>
+    <div class="field">
+      <label for="bpTitle">차단 페이지 제목</label>
+      <input type="text" id="bpTitle" />
+    </div>
+    <div class="field">
+      <label for="bpMessage">차단 페이지 안내 문구</label>
+      <textarea id="bpMessage"></textarea>
+    </div>
+    <div class="field">
+      <button class="primary" id="savePageBtn">차단 페이지 저장</button>
+    </div>
+    <div class="msg" id="pageMsg"></div>
+
+    <div class="field" style="border-top:1px solid var(--line); padding-top:10px;">
+      <label id="pwLabel" for="pwNew">비밀번호 설정</label>
+      <input type="password" id="pwCurrent" class="hidden" placeholder="현재 비밀번호" autocomplete="off" style="margin-bottom:6px;" />
+      <input type="password" id="pwNew" placeholder="새 비밀번호 (비우면 해제)" autocomplete="off" />
+    </div>
+    <div class="field">
+      <button class="primary" id="savePwBtn">비밀번호 저장</button>
+    </div>
+    <div class="msg" id="pwMsg"></div>
+    <div class="hint">비밀번호를 설정하면 팝업을 열 때마다 입력해야 목록을 수정할 수 있습니다. 한 번 해제하면 5분간 유지됩니다.</div>
+  </details>
+
+  <details id="diag">
+    <summary>진단</summary>
+
+    <div class="field">
+      <label for="testUrl">이 주소가 차단되는지 테스트</label>
+      <div class="row">
+        <input type="text" id="testUrl" placeholder="https://map.naver.com" autocomplete="off" />
+        <button id="testBtn">테스트</button>
+      </div>
+    </div>
+    <div class="msg" id="testResult"></div>
+
+    <div class="field">
+      <button id="reloadRulesBtn">규칙 다시 적용</button>
+    </div>
+    <div class="msg" id="reloadMsg"></div>
+
+    <div class="field">
+      <label>크롬에 실제로 등록된 규칙</label>
+      <pre class="dump" id="ruleDump">불러오는 중…</pre>
+    </div>
+  </details>
+</section>
+
+<script src="popup.js"></script>
+</body>
+</html>
