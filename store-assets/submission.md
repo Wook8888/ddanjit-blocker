@@ -48,7 +48,7 @@ That is the extension's only function. It has no other features.
 ```
 Used to persist the user's own settings: the block list, the exception list, the
 custom block page text and emoji, the words used by the optional unlock question,
-a short history of the user's own recent list changes, and the enabled/lock state.
+a per-device view of the user's own current lists across their devices, and the enabled/lock/sync state.
 
 The extension makes no network requests and contacts no server of ours. If the user
 has Chrome Sync enabled, chrome.storage.sync lets Chrome carry these settings between

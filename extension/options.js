@@ -1,4 +1,4 @@
-/* 딴짓 차단기 - 기록 · 백업 페이지 */
+/* 딴짓 차단기 - 동기화 · 백업 페이지 */
 
 const $ = (id) => document.getElementById(id);
 let state = null;
@@ -91,7 +91,7 @@ function showLock() {
   if (!renderQuestion()) markUnlocked().then(showMain);
 }
 
-/* ---------------- 동기화 기록 ---------------- */
+/* ---------------- 동기화된 기기 ---------------- */
 
 function fillChips(el, list) {
   el.innerHTML = "";
@@ -109,130 +109,162 @@ function fillChips(el, list) {
   }
 }
 
-async function renderHistory() {
-  const box = $("histList");
-  const hist = await readHistory();
+/** 두 번 눌러야 실행되는 버튼 (실수 방지) */
+function confirmButton(label, armedLabel, act, onConfirm) {
+  const btn = document.createElement("button");
+  btn.textContent = label;
+  btn.dataset.act = act;
+  let armed = false;
+  btn.addEventListener("click", () => {
+    if (!armed) {
+      armed = true;
+      btn.textContent = armedLabel;
+      btn.classList.add("primary");
+      setTimeout(() => {
+        if (!armed) return;
+        armed = false;
+        btn.textContent = label;
+        btn.classList.remove("primary");
+      }, 4000);
+      return;
+    }
+    armed = false;
+    onConfirm();
+  });
+  return btn;
+}
+
+function tag(text, cls) {
+  const t = document.createElement("span");
+  t.className = "tag" + (cls ? " " + cls : "");
+  t.textContent = text;
+  return t;
+}
+
+/** 기기 한 줄 */
+function deviceRow(dev, { isMe, curB, curA }) {
+  const b = uniqSorted(dev.b);
+  const a = uniqSorted(dev.a);
+  const sameAsMine = sameList(b, curB) && sameList(a, curA);
+
+  const row = document.createElement("div");
+  row.className = "hrow";
+  row.dataset.dev = dev.id;
+
+  const head = document.createElement("button");
+  head.className = "hhead";
+
+  const name = document.createElement("span");
+  name.className = "hdev";
+  name.textContent = dev.d;
+  head.appendChild(name);
+  if (isMe) head.appendChild(tag("이 기기", "now"));
+  if (dev.off) head.appendChild(tag("동기화 꺼짐"));
+
+  const info = document.createElement("span");
+  info.className = "hcount";
+  info.textContent = `${dev.at ? stampShort(dev.at) + " 기준 · " : ""}차단 ${b.length} · 예외 ${a.length}`;
+  head.appendChild(info);
+
+  const body = document.createElement("div");
+  body.className = "hbody";
+  body.hidden = true;
+
+  const l1 = document.createElement("div"); l1.className = "lbl"; l1.textContent = "차단";
+  const d1 = document.createElement("div"); d1.className = "doms"; fillChips(d1, b);
+  const l2 = document.createElement("div"); l2.className = "lbl"; l2.textContent = "예외";
+  const d2 = document.createElement("div"); d2.className = "doms"; fillChips(d2, a);
+  body.append(l1, d1, l2, d2);
+
+  const actions = document.createElement("div");
+  actions.className = "row";
+
+  if (isMe) {
+    const on = state.syncOn !== false;
+    const btn = document.createElement("button");
+    btn.dataset.act = "toggle";
+    btn.textContent = on ? "이 기기 동기화 끄기" : "이 기기 동기화 켜기";
+    btn.addEventListener("click", async () => {
+      await chrome.storage.local.set({ syncOn: !on });
+      await reloadState();
+      setMsg($("devMsg"), !on
+        ? "동기화를 켰습니다. 10분 동안은 다른 기기 목록과 합칩니다."
+        : "동기화를 껐습니다. 이제 이 기기 목록은 이 기기에서만 쓰입니다.", "ok");
+      await renderDevices();
+    });
+    actions.appendChild(btn);
+  } else {
+    if (!sameAsMine) {
+      actions.appendChild(confirmButton("이 목록 가져오기", "정말 가져올까요? 한 번 더", "adopt",
+        () => adoptFrom(dev)));
+    }
+    actions.appendChild(confirmButton("목록에서 삭제", "정말 삭제할까요? 한 번 더", "delete",
+      () => deleteDevice(dev)));
+  }
+  body.appendChild(actions);
+
+  head.addEventListener("click", () => { body.hidden = !body.hidden; });
+  row.append(head, body);
+  return row;
+}
+
+async function renderDevices() {
+  const box = $("devList");
+  const all = await readDevices();
   box.innerHTML = "";
 
   const { syncStatus = {} } = await chrome.storage.local.get("syncStatus");
-  if (syncStatus.histOff) {
-    setMsg($("histMsg"),
-      "차단 목록이 너무 길어 새 기록을 남기지 못하고 있습니다. (크롬 동기화는 항목 하나에 8KB까지만 담깁니다) 차단은 그대로 동작합니다.",
+  if (syncStatus.devOff) {
+    setMsg($("devMsg"),
+      "차단 목록이 너무 길어 이 기기 상태를 동기화 목록에 올리지 못하고 있습니다. (크롬 동기화는 항목 하나에 8KB까지만 담깁니다) 차단은 그대로 동작합니다.",
       "warn");
-  }
-
-  if (!hist.length) {
-    const p = document.createElement("div");
-    p.className = "empty";
-    p.textContent = "아직 기록이 없습니다. 차단 목록을 바꾸면 여기에 쌓입니다.";
-    box.appendChild(p);
-    return;
   }
 
   const curB = uniqSorted(state.blocked);
   const curA = uniqSorted(state.allowed);
 
-  hist.forEach((e) => {
-    const b = uniqSorted(e.b);
-    const a = uniqSorted(e.a);
-    const isNow = sameList(b, curB) && sameList(a, curA);
+  // 이 기기는 늘 맨 위에, 지금 이 기기의 실제 목록으로 보여준다
+  const mineInSync = all.find((d) => d.id === state.deviceId);
+  const me = {
+    id: state.deviceId || "me",
+    d: state.deviceName || "이 기기",
+    at: mineInSync ? mineInSync.at : 0,
+    b: curB, a: curA,
+    off: state.syncOn === false
+  };
+  box.appendChild(deviceRow(me, { isMe: true, curB, curA }));
 
-    const row = document.createElement("div");
-    row.className = "hrow";
+  const others = all.filter((d) => d.id !== state.deviceId);
+  for (const d of others) box.appendChild(deviceRow(d, { isMe: false, curB, curA }));
 
-    const head = document.createElement("button");
-    head.className = "hhead";
-
-    const when = document.createElement("span");
-    when.className = "hwhen";
-    when.textContent = stampShort(e.at);
-
-    const dev = document.createElement("span");
-    dev.className = "hdev";
-    dev.textContent = e.d || "알 수 없는 기기";
-
-    head.append(when, dev);
-
-    if (e.r) {
-      const t = document.createElement("span");
-      t.className = "tag";
-      t.textContent = "되돌림";
-      t.title = stampShort(e.r) + " 상태로 되돌린 기록입니다";
-      head.appendChild(t);
-    }
-    if (isNow) {
-      const t = document.createElement("span");
-      t.className = "tag now";
-      t.textContent = "현재";
-      head.appendChild(t);
-    }
-
-    const count = document.createElement("span");
-    count.className = "hcount";
-    count.textContent = `차단 ${b.length} · 예외 ${a.length}`;
-    head.appendChild(count);
-
-    const body = document.createElement("div");
-    body.className = "hbody";
-    body.hidden = true;
-
-    const l1 = document.createElement("div");
-    l1.className = "lbl";
-    l1.textContent = "차단";
-    const d1 = document.createElement("div");
-    d1.className = "doms";
-    fillChips(d1, b);
-
-    const l2 = document.createElement("div");
-    l2.className = "lbl";
-    l2.textContent = "예외";
-    const d2 = document.createElement("div");
-    d2.className = "doms";
-    fillChips(d2, a);
-
-    body.append(l1, d1, l2, d2);
-
-    if (!isNow) {
-      const btn = document.createElement("button");
-      btn.textContent = "이 상태로 되돌리기";
-      btn.dataset.act = "revert";
-      let armed = false;
-      btn.addEventListener("click", () => {
-        if (!armed) {
-          armed = true;
-          btn.textContent = "정말 되돌릴까요? 한 번 더";
-          btn.classList.add("primary");
-          setTimeout(() => {
-            if (!armed) return;
-            armed = false;
-            btn.textContent = "이 상태로 되돌리기";
-            btn.classList.remove("primary");
-          }, 4000);
-          return;
-        }
-        armed = false;
-        revertTo(e);
-      });
-      body.appendChild(btn);
-    }
-
-    head.addEventListener("click", () => { body.hidden = !body.hidden; });
-    row.append(head, body);
-    box.appendChild(row);
-  });
+  if (!others.length) {
+    const p = document.createElement("div");
+    p.className = "empty";
+    p.textContent = "아직 다른 기기가 없습니다. 같은 구글 계정의 다른 크롬에 설치하면 여기에 나타납니다.";
+    box.appendChild(p);
+  }
 }
 
-async function revertTo(entry) {
-  const blocked = uniqSorted(entry.b);
-  const allowed = uniqSorted(entry.a).filter((d) => !blocked.includes(d));
-  await chrome.storage.local.set({ blocked, allowed, revertFrom: entry.at });
+/** 다른 기기의 목록을 이 기기로 가져온다 (동기화가 켜져 있으면 다른 기기에도 퍼진다) */
+async function adoptFrom(dev) {
+  const blocked = uniqSorted(dev.b);
+  const allowed = uniqSorted(dev.a).filter((d) => !blocked.includes(d));
+  await chrome.storage.local.set({ blocked, allowed });
   await reloadState();
-  setMsg($("histMsg"),
-    `${stampShort(entry.at)} 상태로 되돌렸습니다 — 차단 ${blocked.length}개 · 예외 ${allowed.length}개. 다른 기기에도 곧 반영됩니다.`,
+  setMsg($("devMsg"),
+    `${dev.d} 목록을 가져왔습니다 — 차단 ${blocked.length}개 · 예외 ${allowed.length}개.` +
+    (state.syncOn !== false ? " 동기화 중인 다른 기기에도 곧 반영됩니다." : ""),
     "ok");
-  await renderHistory();
+  await renderDevices();
   await refreshPermCard();
-  setTimeout(renderHistory, 2500); // 올리기가 끝나 새 기록이 생길 때쯤 다시 그린다
+}
+
+/** 다른 기기의 칸을 지운다. 그 기기가 동기화를 켠 채 다시 목록을 바꾸면 다시 나타난다. */
+async function deleteDevice(dev) {
+  await chrome.storage.sync.remove(DEVICE_PREFIX + dev.id);
+  setMsg($("devMsg"),
+    `${dev.d} 을(를) 목록에서 지웠습니다. 그 기기가 동기화를 켠 채로 다시 쓰이면 다시 나타납니다.`, "ok");
+  await renderDevices();
 }
 
 /* ---------------- 단어 ---------------- */
@@ -470,7 +502,7 @@ async function applyImport(mode) {
   setMsg($("fileMsg"), `${label} — 차단 ${blocked.length}개 · 예외 ${allowed.length}개`, "ok");
   renderWords();
   await refreshPermCard();
-  setTimeout(renderHistory, 2500);
+  setTimeout(renderDevices, 2500);
 }
 
 /* ---------------- 사이트 권한 ---------------- */
@@ -543,7 +575,7 @@ async function showMain() {
   $("lock").hidden = true;
   $("main").hidden = false;
   renderWords();
-  await renderHistory();
+  await renderDevices();
   await refreshPermCard();
 }
 
@@ -565,12 +597,13 @@ function wire() {
 
   chrome.storage.onChanged.addListener(async (changes, area) => {
     if ($("main").hidden) return;
-    if (area === "local" && (changes.blocked || changes.allowed || changes.blockPage || changes.words)) {
+    if (area === "local" && (changes.blocked || changes.allowed || changes.blockPage || changes.words ||
+                              changes.syncOn || changes.deviceName || changes.syncStatus)) {
       await reloadState();
       renderWords();
-      await renderHistory();
+      await renderDevices();
     } else if (area === "sync") {
-      await renderHistory();
+      await renderDevices();
     }
   });
 }

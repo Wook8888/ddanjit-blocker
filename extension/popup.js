@@ -212,6 +212,7 @@ function renderSettings() {
   $("enabledToggle").checked = state.enabled;
   $("statusText").textContent = state.enabled ? "차단 작동 중" : "차단 일시 중지됨";
   $("lockToggle").checked = !!state.lockOn;
+  $("syncToggle").checked = state.syncOn !== false;
   if (document.activeElement !== $("devName")) $("devName").value = state.deviceName || "";
 }
 
@@ -238,16 +239,16 @@ async function renderSync() {
     el.title = "";
     return;
   }
-  const hist = await readHistory();
-  const last = hist[0];
   el.className = "syncLine";
-  if (last) {
-    el.textContent = `🔄 ${last.d}에서 변경 · ${timeAgo(last.at)}`;
-    el.title = "누르면 동기화 기록을 볼 수 있습니다";
-  } else {
-    el.textContent = "🔄 크롬 동기화";
-    el.title = "같은 구글 계정으로 로그인해 동기화를 켠 크롬끼리 목록이 자동으로 맞춰집니다.";
+  el.title = "누르면 동기화된 기기를 볼 수 있습니다";
+  if (state.syncOn === false) {
+    el.textContent = "⏸ 이 기기 동기화 꺼짐 · 이 기기 목록만 사용";
+    return;
   }
+  const others = (await readDevices()).filter((d) => d.id !== state.deviceId && !d.off);
+  el.textContent = others.length
+    ? `🔄 ${others.length + 1}대 기기와 동기화 중`
+    : "🔄 크롬 동기화 켜짐";
 }
 
 /* ---------- 화면 전환 ---------- */
@@ -349,7 +350,7 @@ function wireEvents() {
 
   $("backupBtn").addEventListener("click", () => chrome.runtime.openOptionsPage());
   $("syncLine").addEventListener("click", () => {
-    chrome.tabs.create({ url: chrome.runtime.getURL("options.html#history") });
+    chrome.tabs.create({ url: chrome.runtime.getURL("options.html#devices") });
     window.close();
   });
 
@@ -360,6 +361,15 @@ function wireEvents() {
     showMsg($("lockSetMsg"), on
       ? "잠금을 켰습니다. 다음에 열 때 단어 문제가 나옵니다."
       : "잠금을 껐습니다.", "ok");
+  });
+
+  $("syncToggle").addEventListener("change", async (e) => {
+    const on = e.target.checked;
+    await save({ syncOn: on });
+    showMsg($("syncSetMsg"), on
+      ? "동기화를 켰습니다. 10분 동안은 다른 기기 목록과 합칩니다."
+      : "동기화를 껐습니다. 이제 이 기기 목록은 이 기기에서만 쓰입니다.", "ok");
+    renderSync();
   });
 
   $("saveDevBtn").addEventListener("click", async () => {
@@ -386,6 +396,9 @@ chrome.storage.onChanged.addListener(async (changes, area) => {
     renderAllowedList();
   }
   if (changes.syncStatus) renderSync();
+});
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === "sync" && state && !$("main").classList.contains("hidden")) renderSync();
 });
 
 (async function init() {

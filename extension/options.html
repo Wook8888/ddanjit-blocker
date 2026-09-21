@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8" />
-<title>딴짓 차단기 — 기록 · 백업</title>
+<title>딴짓 차단기 — 동기화 · 백업</title>
 <style>
   :root {
     --bg: #f6f7f9; --card: #ffffff; --fg: #1f2328; --muted: #6b7280; --line: #e5e7eb;
@@ -63,7 +63,7 @@
   .qOpts button.right { border-color: var(--ok); color: var(--ok); }
   .qOpts button.wrong { border-color: var(--accent); color: var(--accent); }
 
-  /* 동기화 기록 */
+  /* 동기화된 기기 */
   .hrow { border-top: 1px solid var(--line); }
   .hrow:first-child { border-top: none; }
   .hhead {
@@ -87,6 +87,8 @@
     padding: 1px 7px; margin: 0 4px 4px 0;
   }
   .hbody .none { color: var(--muted); }
+  .hbody .row { margin-top: 4px; }
+  .hdev + .tag { margin-left: 2px; }
   .empty { color: var(--muted); font-size: 13px; padding: 6px 0; }
 
   /* 불러오기 미리보기 */
@@ -115,8 +117,8 @@
   <header>
     <img src="icons/icon48.png" alt="">
     <div>
-      <h1 id="pageTitle">기록 · 백업</h1>
-      <div class="sub" id="pageSub">어느 기기가 언제 목록을 바꿨는지 보고, 그때로 되돌릴 수 있습니다</div>
+      <h1 id="pageTitle">동기화 · 백업</h1>
+      <div class="sub" id="pageSub">기기마다 동기화를 켜고 끄고, 다른 기기의 목록을 보거나 지울 수 있습니다</div>
     </div>
   </header>
 
@@ -132,15 +134,15 @@
   </section>
 
   <div id="main" hidden>
-    <!-- 동기화 기록 -->
-    <section class="card" id="histCard">
-      <h2>동기화 기록</h2>
+    <!-- 동기화된 기기 -->
+    <section class="card" id="devCard">
+      <h2>동기화된 기기</h2>
       <p class="desc">
-        목록이 바뀔 때마다 <b>그때의 전체 목록</b>을 최근 10개까지 남깁니다.
-        줄을 누르면 그때 내용이 펼쳐집니다.
+        기기마다 <b>지금 차단·예외 목록</b>을 보여줍니다. 목록이 바뀌면 자동으로 최신 상태가 됩니다.
+        줄을 누르면 목록이 펼쳐집니다.
       </p>
-      <div id="histList"></div>
-      <div class="msg" id="histMsg"></div>
+      <div id="devList"></div>
+      <div class="msg" id="devMsg"></div>
     </section>
 
     <!-- 파일 -->

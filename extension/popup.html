@@ -235,8 +235,20 @@
     </div>
     <div class="msg" id="lockSetMsg"></div>
 
-    <div class="field divider">
-      <label for="devName">기기 이름 · 동기화 기록에 표시됩니다</label>
+    <div class="field divider rowBetween">
+      <div>
+        <div class="fieldTitle">이 기기 동기화</div>
+        <div class="hint" style="margin-top:2px">끄면 이 기기 목록은 다른 기기와 주고받지 않습니다</div>
+      </div>
+      <label class="switch" title="이 기기 동기화 켜기/끄기">
+        <input type="checkbox" id="syncToggle" />
+        <span class="slider"></span>
+      </label>
+    </div>
+    <div class="msg" id="syncSetMsg"></div>
+
+    <div class="field">
+      <label for="devName">기기 이름 · 동기화된 기기 목록에 표시됩니다</label>
       <div class="row">
         <input type="text" id="devName" placeholder="예: 회사 PC" maxlength="24" autocomplete="off" />
         <button id="saveDevBtn">저장</button>

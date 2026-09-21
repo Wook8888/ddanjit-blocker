@@ -9,32 +9,37 @@
  *   - 이 파일은 local ↔ sync 를 서로 맞춰주는 역할만 한다.
  *       local 이 바뀌면 → 잠깐 모았다가 sync 로 올림
  *       sync 가 바뀌면(다른 기기) → local 로 내려받음
- *   - 기기마다 따로 두는 것: 차단 켜기/끄기(enabled), 잠금(lockOn), 기기 이름, 사이트 권한
+ *   - 기기마다 따로 두는 것: 차단 켜기/끄기(enabled), 잠금(lockOn), 기기 이름,
+ *     동기화 켜기/끄기(syncOn), 사이트 권한
  *
- * 기록
- *   - 목록이 바뀔 때마다 "그 시점의 목록 전체"를 h0~h9 에 돌려 담는다 (최근 10개).
- *   - 같은 기기가 몇 분 안에 연달아 고친 것은 한 칸으로 묶는다.
- *   - 사용자가 기록에서 한 시점을 골라 그 상태로 통째로 되돌릴 수 있다.
+ * 동기화된 기기
+ *   - 기기마다 한 칸(d_<기기번호>)에 "그 기기의 지금 차단·예외 목록"을 둔다.
+ *   - 목록이 바뀌면 그 칸이 최신 상태로 덮어써진다. 쌓이지 않는다.
+ *   - 사용자는 다른 기기의 칸을 지울 수 있고, 그 기기의 목록을 가져올 수 있다.
+ *
+ * 이 기기 동기화 끄기 (syncOn = false)
+ *   - 주고받기를 모두 멈춘다. 이 기기 칸에는 "동기화 끔" 표시만 한 번 남긴다.
+ *   - 다시 켜면 처음 연결할 때처럼 10분 동안 양쪽 목록을 합친다.
  *
  * 용량 제한 (크롬 고정값)
  *   전체 100KB · 항목 하나당 8KB · 쓰기 분당 120회
  *   → 목록을 7.5KB 이하 조각(b0, b1… / a0… / w0…)으로 나눠 담는다.
  *   → 조각마다 개정 번호(r)를 붙여, 다른 기기에서 일부 조각만 먼저 도착한
  *     어중간한 상태는 적용하지 않는다.
- *   → 다 담고도 넘치면 오래된 기록부터 버린다.
  */
 
 const SYNCED_KEYS = ["blocked", "allowed", "blockPage", "words"];
 const SYNC_SCHEMA = 2;
 const CHUNK_BYTES = 7500;
 const ITEM_LIMIT = 7800;        // 항목 하나당 8KB
-const SYNC_BUDGET = 90 * 1024;  // 전체 100KB 에서 여유를 둔다
+const SYNC_BUDGET = 95 * 1024;  // 전체 100KB 에서 여유를 둔다
 const PUSH_DELAY_MS = 1500;
-const COALESCE_MS = 5 * 60 * 1000; // 이 시간 안에 같은 기기가 한 변경은 한 칸으로 묶는다
-/* 처음 연결한 뒤 10분 동안은 다른 기기에서 온 목록을 "덮어쓰지 않고 합친다".
- * 새 기기에 설치한 직후에는 크롬이 아직 다른 기기의 목록을 받아오기 전일 수 있어서,
- * 그 사이에 이 기기 목록이 먼저 올라가도 양쪽 어느 것도 사라지지 않게 하기 위함. */
+/* 처음 연결한 뒤(또는 동기화를 다시 켠 뒤) 10분 동안은 다른 기기에서 온 목록을
+ * "덮어쓰지 않고 합친다". 어느 쪽 목록도 사라지지 않게 하기 위함. */
 const MERGE_WINDOW_MS = 10 * 60 * 1000;
+
+/* 예전 버전이 남긴 키 — 올릴 때 정리한다 */
+const LEGACY_KEY = /^(passHash|salt|hi|hn|h\d)$/;
 
 const Sync = (() => {
   const enc = new TextEncoder();
@@ -46,6 +51,11 @@ const Sync = (() => {
     let t = 0;
     for (const [k, v] of Object.entries(obj)) t += bytes(k) + bytes(JSON.stringify(v));
     return t;
+  }
+
+  async function isOn() {
+    const { syncOn = true } = await chrome.storage.local.get({ syncOn: true });
+    return syncOn !== false;
   }
 
   /* ---------------- 조각 나누기 ---------------- */
@@ -92,7 +102,7 @@ const Sync = (() => {
   /** sync 전체 → 설정. 아직 비었거나 조각이 덜 도착했으면 null */
   function decode(all) {
     const m = all && all.meta;
-    // v1(비밀번호를 같이 올리던 예전 형식)도 읽어준다 — 다음 push 때 v2 로 올라간다
+    // v1(비밀번호를 같이 올리던 예전 형식)도 읽어준다 — 다음 push 때 정리된다
     if (!m || (all.v !== SYNC_SCHEMA && all.v !== 1)) return null;
     const collect = (prefix, count) => {
       const out = [];
@@ -153,88 +163,61 @@ const Sync = (() => {
     return "동기화 실패: " + m;
   }
 
-  /* ---------------- 기록 ---------------- */
+  /* ---------------- 이 기기 칸 ---------------- */
 
   /**
-   * 이번 변경을 담을 기록 항목을 만든다.
-   * 되돌리기가 아니고 같은 기기가 COALESCE_MS 안에 또 고친 것이라면,
-   * 새 칸을 쓰지 않고 가장 최근 칸을 최신 상태로 덮어쓴다.
+   * 이 기기의 지금 차단·예외 목록을 d_<기기번호> 칸에 쓴다.
+   * 내용(이름·목록·끔 여부)이 그대로면 쓰지 않으므로 시각도 그대로 남는다.
    */
-  function makeSnapshot(all, local, dev, devId, revertFrom) {
+  async function writeOwnEntry(lists, opts = {}) {
+    const { deviceName, deviceId } = await chrome.storage.local.get({ deviceName: "", deviceId: "" });
+    if (!deviceId) return;
+    const key = DEVICE_PREFIX + deviceId;
     const entry = {
+      d: deviceName || "이 기기",
       at: Date.now(),
-      d: dev || "이 기기",
-      i: devId || "",
-      b: uniqSorted(local.blocked),
-      a: uniqSorted(local.allowed)
+      b: uniqSorted(lists.blocked),
+      a: uniqSorted(lists.allowed)
     };
-    if (revertFrom) entry.r = revertFrom;
-    if (bytes(JSON.stringify(entry)) > ITEM_LIMIT) return null; // 목록이 너무 길면 기록은 건너뛴다
+    if (opts.off) entry.off = true;
 
-    let hn = Math.min(Math.max(all.hn | 0, 0), HISTORY_MAX);
-    let hi = Math.min(Math.max(all.hi | 0, 0), HISTORY_MAX - 1);
-    const newest = hn ? all["h" + hi] : null;
-    const coalesce =
-      !revertFrom && newest && !newest.r &&
-      (newest.i ? newest.i === entry.i : newest.d === entry.d) &&
-      Date.now() - (newest.at || 0) < COALESCE_MS;
-
-    if (!coalesce) {
-      hi = hn ? (hi + 1) % HISTORY_MAX : 0;
-      hn = Math.min(hn + 1, HISTORY_MAX);
+    const all = await chrome.storage.sync.get(null);
+    const prev = all[key];
+    if (prev && prev.d === entry.d && !!prev.off === !!entry.off &&
+        same(uniqSorted(prev.b), entry.b) && same(uniqSorted(prev.a), entry.a)) {
+      return; // 바뀐 게 없음
     }
-    return { items: { ["h" + hi]: entry, hi, hn }, hi, hn };
+    // 한 칸(8KB) 또는 전체 용량을 넘으면 칸을 남기지 못한다 — 차단은 그대로 동작
+    const projected = { ...all, [key]: entry };
+    if (bytes(JSON.stringify(entry)) > ITEM_LIMIT || sizeOf(projected) > SYNC_BUDGET) {
+      await setStatus({ devOff: true });
+      return;
+    }
+    await chrome.storage.sync.set({ [key]: entry });
+    await setStatus({ devOff: false });
   }
 
   /* ---------------- 올리기 / 내려받기 ---------------- */
 
   async function push(local) {
-    const { items: settings, counts } = encode(local);
     const all = await chrome.storage.sync.get(null);
     const cur = decode(all);
-    if (cur && same(pick(cur), pick(local))) {
-      await chrome.storage.local.set({ syncDirty: false });
-      return; // 이미 같음
+    const legacy = Object.keys(all).filter((k) => LEGACY_KEY.test(k));
+
+    if (!cur || !same(pick(cur), pick(local)) || legacy.length) {
+      const { items, counts } = encode(local);
+      // 목록이 줄어서 남게 된 예전 조각 + 예전 버전 잔재 정리
+      const remove = Object.keys(all).filter((k) => {
+        const m = /^([abw])(\d+)$/.exec(k);
+        if (m) return Number(m[2]) >= (counts[m[1]] || 0);
+        return LEGACY_KEY.test(k);
+      });
+      await chrome.storage.sync.set(items);
+      if (remove.length) await chrome.storage.sync.remove(remove);
+      await setStatus({ at: Date.now(), error: "" });
     }
-
-    // 목록이 줄어서 남게 된 예전 조각 + v1 잔재(비밀번호) 정리
-    const remove = Object.keys(all).filter((k) => {
-      const m = /^([abw])(\d+)$/.exec(k);
-      if (m) return Number(m[2]) >= (counts[m[1]] || 0);
-      return k === "passHash" || k === "salt";
-    });
-
-    const write = { ...settings };
-    const { deviceName, deviceId, revertFrom } = await chrome.storage.local.get({
-      deviceName: "", deviceId: "", revertFrom: 0
-    });
-
-    const snap = makeSnapshot(all, local, deviceName, deviceId, revertFrom);
-    // 목록이 너무 길어 한 칸(8KB)에 안 들어가면 기록을 남기지 못한다 — 사용자에게 알린다
-    await setStatus({ histOff: !snap });
-    if (snap) {
-      Object.assign(write, snap.items);
-      // 다 담고도 100KB 를 넘으면 오래된 기록부터 버린다
-      const projected = { ...all };
-      for (const k of remove) delete projected[k];
-      Object.assign(projected, write);
-      let hn = snap.hn;
-      const hi = snap.hi;
-      while (hn > 1 && sizeOf(projected) > SYNC_BUDGET) {
-        const oldest = ((hi - (hn - 1)) % HISTORY_MAX + HISTORY_MAX) % HISTORY_MAX;
-        delete projected["h" + oldest];
-        remove.push("h" + oldest);
-        hn -= 1;
-        projected.hn = hn;
-        write.hn = hn;
-      }
-    }
-
-    await chrome.storage.sync.set(write);
-    if (remove.length) await chrome.storage.sync.remove(remove);
-    if (revertFrom) await chrome.storage.local.set({ revertFrom: 0 });
     await chrome.storage.local.set({ syncDirty: false });
-    await setStatus({ at: Date.now(), error: "" });
+    await writeOwnEntry(local);
   }
 
   /* sync → local 로 내려받아 쓴 값을 기억해 둔다.
@@ -247,6 +230,7 @@ const Sync = (() => {
   }
 
   async function pull() {
+    if (!(await isOn())) return false;
     // 이 기기에 아직 올리지 못한 변경이 있으면 그걸 우선한다 (곧 올라간다)
     const { syncDirty, syncMergeUntil } = await chrome.storage.local.get({ syncDirty: false, syncMergeUntil: 0 });
     if (syncDirty) return false;
@@ -263,6 +247,7 @@ const Sync = (() => {
     }
     // 합친 결과가 원격과 다르면 다시 올려서 양쪽을 같게 만든다
     if (merging && !same(pick(remote), want)) await push(want);
+    else await writeOwnEntry(want); // 이 기기 칸도 지금 목록으로
     return true;
   }
 
@@ -282,13 +267,18 @@ const Sync = (() => {
   function schedulePush() {
     clearTimeout(timer);
     timer = setTimeout(() => {
-      serial(async () => push(await chrome.storage.local.get(DEFAULTS)));
+      serial(async () => {
+        if (!(await isOn())) return;
+        await push(await chrome.storage.local.get(DEFAULTS));
+      });
     }, PUSH_DELAY_MS);
   }
 
-  /** 이 기기에서 처음 동기화를 시작할 때: 서로의 목록을 합친다 (어느 쪽도 잃지 않도록) */
+  /** 처음 연결하거나 동기화를 다시 켤 때: 서로의 목록을 합친다 (어느 쪽도 잃지 않도록) */
   async function firstLink() {
-    await chrome.storage.local.set({ syncLinked: true, syncMergeUntil: Date.now() + MERGE_WINDOW_MS });
+    await chrome.storage.local.set({
+      syncLinked: true, syncDirty: false, syncMergeUntil: Date.now() + MERGE_WINDOW_MS
+    });
     const local = await chrome.storage.local.get(DEFAULTS);
     const remote = decode(await chrome.storage.sync.get(null));
     if (remote) {
@@ -300,14 +290,21 @@ const Sync = (() => {
     }
   }
 
-  /** 기록에 같은 이름의 다른 기기가 있으면 이 기기 이름 뒤에 번호를 붙인다 */
+  /** 동기화를 끈 순간: 이 기기 칸에 "동기화 끔" 만 남기고 멈춘다 */
+  async function markOff() {
+    await chrome.storage.local.set({ syncDirty: false });
+    clearTimeout(timer);
+    await writeOwnEntry(await chrome.storage.local.get(DEFAULTS), { off: true });
+  }
+
+  /** 같은 이름의 다른 기기가 있으면 이 기기 이름 뒤에 번호를 붙인다 */
   async function ensureUniqueName() {
     const { deviceName, deviceId } = await chrome.storage.local.get({ deviceName: "", deviceId: "" });
     if (!deviceName || !deviceId) return;
-    const hist = historyFrom(await chrome.storage.sync.get(null));
-    const clash = hist.some((e) => e.d === deviceName && e.i && e.i !== deviceId);
+    const devices = devicesFrom(await chrome.storage.sync.get(null));
+    const clash = devices.some((e) => e.d === deviceName && e.id !== deviceId);
     if (!clash) return;
-    const taken = new Set(hist.map((e) => e.d));
+    const taken = new Set(devices.map((e) => e.d));
     for (let n = 2; n < 30; n++) {
       const candidate = `${deviceName} ${n}`;
       if (!taken.has(candidate)) {
@@ -318,30 +315,51 @@ const Sync = (() => {
   }
 
   async function onStart() {
+    if (!(await isOn())) return;
     const { syncLinked, syncDirty } = await chrome.storage.local.get({ syncLinked: false, syncDirty: false });
     await ensureUniqueName();
     if (!syncLinked) return firstLink();
     // 올리지 못한 변경이 남아 있으면 먼저 올리고, 아니면 다른 기기의 변경을 받는다
     if (syncDirty) return push(await chrome.storage.local.get(DEFAULTS));
-    await pull();
+    const pulled = await pull();
+    // 예전 버전 잔재가 있거나 아직 한 번도 안 올렸다면 정리 겸 올린다
+    const all = await chrome.storage.sync.get(null);
+    if (!pulled && !all.meta) await push(await chrome.storage.local.get(DEFAULTS)); // 아직 아무도 안 올림
+    else if (Object.keys(all).some((k) => LEGACY_KEY.test(k))) {
+      await push(await chrome.storage.local.get(DEFAULTS));
+    }
   }
 
   function init() {
     chrome.storage.onChanged.addListener((changes, area) => {
       if (area === "local") {
+        // 이 기기 동기화 켜기/끄기
+        if ("syncOn" in changes) {
+          const on = changes.syncOn.newValue !== false;
+          serial(on ? firstLink : markOff);
+          return;
+        }
+        // 이름이 바뀌면 이 기기 칸만 고친다
+        if ("deviceName" in changes) {
+          serial(async () => {
+            if (await isOn()) await writeOwnEntry(await chrome.storage.local.get(DEFAULTS));
+          });
+        }
         const keys = SYNCED_KEYS.filter((k) => k in changes);
         if (!keys.length) return;
         if (keys.every((k) => lastApplied[k] === JSON.stringify(changes[k].newValue))) return; // 방금 내려받은 값
-        chrome.storage.local.set({ syncDirty: true });
-        schedulePush();
+        isOn().then((on) => {
+          if (!on) return; // 동기화를 끈 기기의 변경은 이 기기 안에만 남는다
+          chrome.storage.local.set({ syncDirty: true });
+          schedulePush();
+        });
       } else if (area === "sync") {
-        // 기록만 바뀐 경우에도 pull 은 안전하다 (같으면 아무것도 하지 않는다)
         serial(pull);
       }
     });
     serial(onStart);
   }
 
-  // push/pull/onStart 은 테스트에서 직접 호출하려고 함께 내보낸다
-  return { init, encode, decode, merge, makeSnapshot, push, pull, onStart, firstLink };
+  // push/pull/onStart 등은 테스트에서 직접 호출하려고 함께 내보낸다
+  return { init, encode, decode, merge, push, pull, onStart, firstLink, markOff, writeOwnEntry };
 })();

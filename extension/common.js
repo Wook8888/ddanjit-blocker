@@ -9,7 +9,9 @@ const DEFAULTS = {
   allowed: [],
   enabled: true,      // 차단 켜기/끄기 — 기기별
   lockOn: false,      // 잠금 켜기/끄기 — 기기별
-  deviceName: "",     // 동기화 기록에 남는 이름 — 기기별
+  deviceName: "",     // 동기화된 기기 목록에 보이는 이름 — 기기별
+  syncOn: true,       // 이 기기 동기화 켜기/끄기 — 기기별. 끄면 주고받기 모두 멈춤
+  deviceId: "",       // 기기끼리 구분하는 임의 번호 — 기기별 (처음 켤 때 background 가 만든다)
   words: [],          // 잠금 문제 단어 — 동기화됨. 비어 있으면 기본 단어
   lastError: "",
   // 차단 화면 문구. 팝업에서 고치는 칸은 없애고 이 값으로 고정했다.
@@ -90,38 +92,29 @@ function originPattern(domain) {
   return "*://*." + domain + "/*";
 }
 
-/* ---------- 동기화 기록 ----------
- * 크롬 동기화 저장소에 h0~h9 로 스냅샷을 돌려 쓴다.
- *   hi = 가장 최근 기록이 들어 있는 칸,  hn = 들어 있는 개수
- * 백그라운드(sync.js)가 쓰고, 팝업·백업 페이지가 읽는다. */
+/* ---------- 동기화된 기기 ----------
+ * 크롬 동기화 저장소에 기기마다 한 칸(d_<기기번호>)을 둔다.
+ *   { d: 기기 이름, at: 마지막으로 목록이 바뀐 시각, b: 차단 목록, a: 예외 목록, off?: 동기화 끔 }
+ * 목록이 바뀌면 그 칸이 최신 상태로 덮어써진다. 쌓이지 않는다.
+ * 백그라운드(sync.js)가 쓰고, 팝업·동기화 페이지가 읽고 지운다. */
 
-const HISTORY_MAX = 10;
+const DEVICE_PREFIX = "d_";
 
-/** 최신 → 과거 순서의 칸 번호 */
-function historyOrder(hi, hn) {
-  const out = [];
-  for (let k = 0; k < hn; k++) {
-    out.push(((hi - k) % HISTORY_MAX + HISTORY_MAX) % HISTORY_MAX);
-  }
-  return out;
-}
-
-/** 동기화 저장소 전체 → 기록 배열 (최신순). 각 항목 {at, d, b, a, r?, slot} */
-function historyFrom(all) {
+/** 동기화 저장소 전체 → 기기 배열 (최근에 바뀐 순). 각 항목 {id, d, at, b, a, off} */
+function devicesFrom(all) {
   if (!all) return [];
-  const hn = Math.min(Math.max(all.hn | 0, 0), HISTORY_MAX);
-  const hi = Math.min(Math.max(all.hi | 0, 0), HISTORY_MAX - 1);
   const out = [];
-  for (const slot of historyOrder(hi, hn)) {
-    const e = all["h" + slot];
-    if (e && Array.isArray(e.b) && Array.isArray(e.a)) out.push({ ...e, slot });
+  for (const [k, v] of Object.entries(all)) {
+    if (!k.startsWith(DEVICE_PREFIX) || !v || !Array.isArray(v.b) || !Array.isArray(v.a)) continue;
+    out.push({ id: k.slice(DEVICE_PREFIX.length), d: v.d || "이름 없는 기기", at: v.at || 0,
+               b: v.b, a: v.a, off: !!v.off });
   }
-  return out;
+  return out.sort((x, y) => y.at - x.at);
 }
 
-async function readHistory() {
+async function readDevices() {
   try {
-    return historyFrom(await chrome.storage.sync.get(null));
+    return devicesFrom(await chrome.storage.sync.get(null));
   } catch (e) {
     return [];
   }

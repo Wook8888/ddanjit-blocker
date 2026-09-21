@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "딴짓 차단기",
-  "version": "2.0.3",
+  "version": "2.1.0",
   "description": "차단할 사이트를 적기만 하면 됩니다. 서브도메인까지 한 번에 차단하고, 필요한 곳만 예외로 열어두세요.",
   "permissions": [
     "declarativeNetRequestWithHostAccess",

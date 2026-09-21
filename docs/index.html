@@ -123,11 +123,13 @@
       <tr><td>차단 목록 · 예외 목록</td><td>사용자가 직접 입력한 도메인</td><td>예</td></tr>
       <tr><td>차단 화면 문구</td><td>차단 화면에 표시할 기호와 짧은 문구</td><td>예</td></tr>
       <tr><td>잠금 문제 단어</td><td>잠금을 풀 때 나오는 단어·발음·뜻 (사용자가 바꿀 수 있음)</td><td>예</td></tr>
-      <tr><td>동기화 기록</td><td>최근 10회의 차단·예외 목록, 바뀐 시각, 바꾼 기기의 이름</td><td>예</td></tr>
-      <tr><td>기기 이름 · 기기 구분 번호</td><td>사용자가 붙인 기기 이름("회사 PC" 등)과,
-        내 기기끼리 구분하려고 확장 프로그램이 임의로 만든 짧은 번호.
-        하드웨어 정보와는 무관합니다.</td><td>기록 안에서만</td></tr>
-      <tr><td>차단 켜짐 · 잠금 켜짐</td><td>기능 켜짐/꺼짐 상태</td><td>아니요 (기기마다 따로)</td></tr>
+      <tr><td>동기화된 기기 목록</td><td>기기마다 한 줄: 사용자가 붙인 기기 이름("회사 PC" 등),
+        그 기기의 지금 차단·예외 목록, 목록이 마지막으로 바뀐 시각, 동기화 켜짐 여부.
+        목록이 바뀌면 최신 상태로 덮어써지며 쌓이지 않습니다. 사용자가 언제든 지울 수 있습니다.</td>
+        <td>예 (이 기기에서 동기화를 켠 경우만)</td></tr>
+      <tr><td>기기 구분 번호</td><td>내 기기끼리 구분하려고 확장 프로그램이 임의로 만든 짧은 번호.
+        하드웨어 정보와는 무관합니다.</td><td>기기 목록 안에서만</td></tr>
+      <tr><td>차단 켜짐 · 잠금 켜짐 · 동기화 켜짐</td><td>기능 켜짐/꺼짐 상태</td><td>아니요 (기기마다 따로)</td></tr>
       <tr><td>잠금 해제 시각</td><td>문제를 맞힌 뒤 5분 동안 열어 두기 위한 시각.
         브라우저를 닫으면 사라집니다.</td><td>아니요</td></tr>
     </table>
@@ -136,12 +138,13 @@
     계정·이메일·비밀번호를 묻거나 저장하지 않습니다.</p>
 
     <h3>크롬 동기화에 대하여</h3>
-    <p>사용자가 크롬 동기화를 켜 두었다면, 위 표에서 "예"로 표시된 항목이
+    <p>사용자가 크롬 동기화를 켜 두고 이 확장 프로그램의 <b>이 기기 동기화</b>도 켜 두었다면, 위 표에서 "예"로 표시된 항목이
     <code>chrome.storage.sync</code> 를 통해 <b>사용자 본인의 구글 계정</b>에 보관되어
     같은 계정으로 로그인한 <b>사용자 본인의 다른 크롬</b>으로만 전달됩니다.
     이 전달은 구글이 제공하는 크롬 동기화 기능이 처리하며,
     <b>개발자는 이 데이터에 접근할 수 없고 중간에 어떤 서버도 두지 않습니다.</b>
-    크롬 설정에서 동기화를 끄면 데이터는 그 기기 안에만 남습니다.
+    확장 프로그램 설정에서 <b>이 기기 동기화</b>를 끄거나 크롬 설정에서 동기화를 끄면,
+    그 기기의 목록은 그 기기 안에만 남고 다른 기기와 주고받지 않습니다.
     (구글의 처리 방식은 <a href="https://policies.google.com/privacy">구글 개인정보처리방침</a>을 따릅니다.)</p>
 
     <h3>엑셀 백업 파일에 대하여</h3>
@@ -226,10 +229,13 @@
       <tr><td>Block list · exception list</td><td>Domains you entered yourself</td><td>Yes</td></tr>
       <tr><td>Block page text</td><td>The symbol and short message shown on the block page</td><td>Yes</td></tr>
       <tr><td>Unlock words</td><td>Words, pronunciations and meanings used by the unlock question (editable by you)</td><td>Yes</td></tr>
-      <tr><td>Sync history</td><td>The last 10 versions of your lists, when they changed, and the name of the device that changed them</td><td>Yes</td></tr>
-      <tr><td>Device name · device tag</td><td>The name you give a device ("Work PC") and a short random tag the
-        extension creates to tell your own devices apart. It has nothing to do with hardware.</td><td>Only inside the history</td></tr>
-      <tr><td>Blocking on · lock on</td><td>Whether each feature is turned on</td><td>No (per device)</td></tr>
+      <tr><td>Synced device list</td><td>One row per device: the name you give it ("Work PC"), that device's
+        current block and exception lists, when they last changed, and whether its sync is on.
+        Each row is overwritten with the latest state and never accumulates. You can delete rows at any time.</td>
+        <td>Yes (only when sync is on for that device)</td></tr>
+      <tr><td>Device tag</td><td>A short random tag the extension creates to tell your own devices apart.
+        It has nothing to do with hardware.</td><td>Only inside the device list</td></tr>
+      <tr><td>Blocking on · lock on · sync on</td><td>Whether each feature is turned on</td><td>No (per device)</td></tr>
       <tr><td>Unlock time</td><td>Keeps settings open for 5 minutes after a correct answer.
         Cleared when the browser closes.</td><td>No</td></tr>
     </table>
@@ -238,11 +244,12 @@
     It never asks for or stores an account, email address or password.</p>
 
     <h3>About Chrome Sync</h3>
-    <p>If you have Chrome Sync enabled, the items marked "Yes" above are kept via
+    <p>If you have Chrome Sync enabled and <b>Sync this device</b> is on in the extension, the items marked "Yes" above are kept via
     <code>chrome.storage.sync</code> in <b>your own Google account</b> and delivered only to
     <b>your own other Chrome browsers</b> signed in to that account. This is handled by Google's
     Chrome Sync feature; <b>the developer cannot access this data and operates no server in between.</b>
-    Turning Chrome Sync off keeps the data on that device only. (Google's handling is governed by the
+    Turning off <b>Sync this device</b> in the extension, or Chrome Sync itself, keeps that device's lists
+    on that device only and stops exchanging them. (Google's handling is governed by the
     <a href="https://policies.google.com/privacy">Google Privacy Policy</a>.)</p>
 
     <h3>About the Excel backup file</h3>
