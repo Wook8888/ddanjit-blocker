@@ -108,21 +108,31 @@
     존재하지 않습니다.</p>
 
     <h2>2. 기기에 저장되는 정보</h2>
-    <p>기능 동작을 위해 아래 항목이 <b>사용자의 브라우저에만</b> 저장됩니다.
-    크롬의 <code>chrome.storage.local</code> 영역을 사용하며, 이 데이터는
-    개발자를 포함한 누구에게도 전송되지 않습니다.</p>
+    <p>기능 동작을 위해 아래 항목이 <b>사용자의 브라우저에</b> 저장됩니다.
+    크롬의 <code>chrome.storage.local</code> 과 <code>chrome.storage.sync</code> 영역을 사용하며,
+    이 데이터는 <b>개발자에게 전송되지 않습니다.</b></p>
     <div class="scroll">
     <table class="tbl">
       <tr><th>저장 항목</th><th>내용</th></tr>
       <tr><td>차단 목록</td><td>사용자가 직접 입력한 도메인 목록</td></tr>
       <tr><td>예외 목록</td><td>차단 대상에서 제외할 도메인 목록</td></tr>
       <tr><td>차단 페이지 설정</td><td>차단 시 표시할 문구와 이모지</td></tr>
-      <tr><td>비밀번호</td><td>원문이 아닌 SHA-256 해시값과 솔트</td></tr>
-      <tr><td>차단 사용 여부</td><td>차단 기능 켜짐/꺼짐 상태</td></tr>
+      <tr><td>잠금 문제 단어</td><td>잠금을 풀 때 나오는 단어와 뜻 (사용자가 바꿀 수 있음)</td></tr>
+      <tr><td>동기화 기록</td><td>최근 10회의 차단·예외 목록과 그 시각, 사용자가 붙인 기기 이름</td></tr>
+      <tr><td>차단 사용 여부 · 잠금 여부</td><td>기능 켜짐/꺼짐 상태 (기기마다 따로)</td></tr>
     </table>
     </div>
-    <p>비밀번호는 해시 형태로만 저장되므로 저장된 값에서 원래 비밀번호를
-    되돌릴 수 없습니다. 개발자도 사용자의 비밀번호를 알 수 없습니다.</p>
+    <p>이 확장 프로그램은 <b>비밀번호를 사용하지 않습니다.</b> 잠금은 단어 문제로만 이루어지며,
+    계정·이메일·비밀번호를 묻거나 저장하지 않습니다.</p>
+
+    <h3 style="font-size:1rem;margin-top:1.4rem">크롬 동기화에 대하여</h3>
+    <p>사용자가 크롬 동기화를 켜 두었다면, 위 항목 중 <b>차단 목록 · 예외 목록 · 차단 페이지 설정 ·
+    잠금 문제 단어 · 동기화 기록</b>이 <code>chrome.storage.sync</code> 를 통해
+    <b>사용자 본인의 구글 계정</b>에 저장되어 같은 계정으로 로그인한 사용자 본인의 다른 크롬으로 전달됩니다.
+    이 전달은 구글이 제공하는 크롬 동기화 기능으로 이루어지며,
+    개발자는 이 데이터에 접근할 수 없고 중간에 어떤 서버도 두지 않습니다.
+    크롬 설정에서 동기화를 끄면 데이터는 그 기기 안에만 남습니다.
+    (구글의 처리 방식은 <a href="https://policies.google.com/privacy">구글 개인정보처리방침</a>을 따릅니다.)</p>
 
     <h2>3. 요청하는 권한과 사용 목적</h2>
     <div class="scroll">
@@ -190,20 +200,31 @@
     communicates with any external server.</p>
 
     <h2>2. Data stored on your device</h2>
-    <p>The following is stored <b>only in your browser</b> via Chrome's
-    <code>chrome.storage.local</code>. It is never sent anywhere, including to the developer.</p>
+    <p>The following is stored <b>in your browser</b> via Chrome's
+    <code>chrome.storage.local</code> and <code>chrome.storage.sync</code>.
+    It is <b>never sent to the developer.</b></p>
     <div class="scroll">
     <table class="tbl">
       <tr><th>Item</th><th>Description</th></tr>
       <tr><td>Block list</td><td>Domains you entered yourself</td></tr>
       <tr><td>Exception list</td><td>Domains excluded from blocking</td></tr>
       <tr><td>Block page settings</td><td>Your custom message and emoji</td></tr>
-      <tr><td>Password</td><td>A SHA-256 hash and salt — never the password itself</td></tr>
-      <tr><td>Enabled state</td><td>Whether blocking is currently on</td></tr>
+      <tr><td>Unlock words</td><td>The words and meanings used by the unlock question (editable by you)</td></tr>
+      <tr><td>Sync history</td><td>The last 10 versions of your lists with timestamps and the device names you chose</td></tr>
+      <tr><td>Enabled / lock state</td><td>Whether blocking and the lock are on (per device)</td></tr>
     </table>
     </div>
-    <p>Because only a hash is stored, the original password cannot be recovered
-    from it. The developer cannot know your password.</p>
+    <p>This extension <b>does not use passwords.</b> The lock is a word question only.
+    It never asks for or stores an account, email address or password.</p>
+
+    <h3 style="font-size:1rem;margin-top:1.4rem">About Chrome Sync</h3>
+    <p>If you have Chrome Sync enabled, your <b>block list, exception list, block page settings,
+    unlock words and sync history</b> are stored via <code>chrome.storage.sync</code> in
+    <b>your own Google account</b> and delivered to your other Chrome browsers signed in to that
+    same account. This transfer is performed by Google's Chrome Sync feature. The developer cannot
+    access this data and operates no server in between. Turning Chrome Sync off keeps the data on
+    that device only. (Google's handling is governed by the
+    <a href="https://policies.google.com/privacy">Google Privacy Policy</a>.)</p>
 
     <h2>3. Permissions and why they are needed</h2>
     <div class="scroll">

@@ -9,39 +9,41 @@
  * "Rule with id N does not have a unique ID" 오류로 호출 전체가 실패한다.
  * → 아래 rebuildQueue 로 직렬화하고, 삭제 목록에 추가할 ID까지 포함시켜 방지한다. */
 
+importScripts("common.js", "sync.js"); // DEFAULTS·공용 함수, 크롬 동기화
+
 const BLOCK_RULE_BASE = 1;
 const ALLOW_RULE_BASE = 100000;
 const BLOCK_PRIORITY = 1;
 const ALLOW_PRIORITY = 2;
 
-const DEFAULTS = {
-  blocked: [],
-  allowed: [],
-  enabled: true,
-  passHash: "",
-  salt: "",
-  blockPage: {
-    title: "잠깐! 지금은 접속할 수 없어요",
-    message: "이 사이트는 사용자가 직접 차단 목록에 추가했습니다.\n지금 해야 할 일로 돌아가 볼까요?",
-    emoji: "🛑"
-  }
-};
-
 async function getState() {
   return chrome.storage.local.get(DEFAULTS);
 }
 
-/** a 가 b 자신이거나 b의 서브도메인인가 */
-function isUnder(a, b) {
-  return a === b || a.endsWith("." + b);
+function escapeRegex(s) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-/** 차단 목록 → 안내 페이지로 리디렉트하는 규칙 (예외 도메인은 조건에서 제외) */
+/**
+ * 도메인과 모든 서브도메인의 http/https 주소 전체에 매칭되는 정규식.
+ *   naver.com      → O    m.naver.com/abc → O
+ *   evilnaver.com  → X    naver.com.evil.com → X
+ * 주소 전체를 매칭해야 regexSubstitution 의 \0 이 원래 주소 전체가 된다.
+ */
+function domainRegex(domain) {
+  return "^https?://([^/?#]*\\.)?" + escapeRegex(domain) + "([:/?#].*)?$";
+}
+
+/**
+ * 차단 목록 → 안내 페이지로 리디렉트하는 규칙 (예외 도메인은 조건에서 제외)
+ * regexSubstitution 으로 원래 주소(\0)를 안내 페이지 주소 끝에 붙여 넘긴다.
+ * 치환은 크롬이 직접 하므로 확장 프로그램이 요청 내용을 읽는 것은 아니다.
+ */
 function buildBlockRules(blocked, allowed) {
+  const page = chrome.runtime.getURL("blocked.html");
   return blocked.map((domain, index) => {
     const condition = {
-      // ||example.com^  →  example.com 및 모든 서브도메인
-      urlFilter: "||" + domain + "^",
+      regexFilter: domainRegex(domain),
       resourceTypes: ["main_frame"]
     };
     // 이 차단 도메인 아래에 걸린 예외들은 매칭 대상에서 빼버린다
@@ -54,7 +56,8 @@ function buildBlockRules(blocked, allowed) {
       action: {
         type: "redirect",
         redirect: {
-          extensionPath: "/blocked.html?d=" + encodeURIComponent(domain)
+          // u= 는 반드시 맨 끝에 둔다 (원래 주소 안의 & ? # 를 그대로 보존하기 위해)
+          regexSubstitution: page + "?d=" + encodeURIComponent(domain) + "&u=\\0"
         }
       },
       condition
@@ -130,13 +133,81 @@ function rebuildRules() {
   return rebuildQueue;
 }
 
+/** 사이트 접근 권한이 없어 아직 차단되지 않는 도메인 수 */
+async function countMissingPerms(blocked) {
+  let n = 0;
+  for (const d of blocked) {
+    try {
+      if (!(await chrome.permissions.contains({ origins: [originPattern(d)] }))) n++;
+    } catch (e) { n++; }
+  }
+  return n;
+}
+
 async function updateBadge(count, enabled) {
   try {
+    const { blocked } = await getState();
+    const missing = enabled ? await countMissingPerms([...new Set(blocked)]) : 0;
+    if (missing) {
+      // 다른 기기에서 동기화로 넘어온 주소는 이 기기에서 권한을 한 번 허용해야 차단된다
+      await chrome.action.setBadgeBackgroundColor({ color: "#e8a200" });
+      await chrome.action.setBadgeText({ text: "!" });
+      await chrome.action.setTitle({ title: `딴짓 차단기 — ${missing}개 사이트 권한 허용 필요` });
+      return;
+    }
     await chrome.action.setBadgeBackgroundColor({ color: enabled ? "#d93025" : "#9aa0a6" });
     await chrome.action.setBadgeText({ text: count > 0 ? String(count) : "" });
+    await chrome.action.setTitle({ title: "딴짓 차단기" });
   } catch (e) {
     /* 배지 설정 실패는 무시 */
   }
+}
+
+/* ---------- 기기 설정 · 이전 버전에서 넘어오기 ---------- */
+
+/* v1.x 의 기본 차단 화면 문구. 사용자가 손대지 않고 그대로 쓰고 있었다면
+ * 새 기본값으로 바꿔준다. 직접 고친 문구는 건드리지 않는다. */
+const OLD_DEFAULT_PAGE = {
+  title: "잠깐! 지금은 접속할 수 없어요",
+  message: "이 사이트는 사용자가 직접 차단 목록에 추가했습니다.\n지금 해야 할 일로 돌아가 볼까요?",
+  emoji: "🛑"
+};
+
+async function initDevice() {
+  const cur = await chrome.storage.local.get({
+    deviceName: "", deviceId: "", lockOn: false, passHash: "", salt: "", blockPage: null
+  });
+  const patch = {};
+
+  const bp = cur.blockPage;
+  if (bp && bp.title === OLD_DEFAULT_PAGE.title && bp.message === OLD_DEFAULT_PAGE.message) {
+    // 이모지를 직접 바꿔 쓰고 있었다면 그것만 남긴다
+    const keep = bp.emoji && bp.emoji !== OLD_DEFAULT_PAGE.emoji;
+    patch.blockPage = keep
+      ? { ...DEFAULTS.blockPage, emoji: bp.emoji }
+      : { ...DEFAULTS.blockPage };
+  } else if (bp && bp.title === DEFAULTS.blockPage.title &&
+             bp.message === DEFAULTS.blockPage.message &&
+             (bp.emoji === "ㅁ" || bp.emoji === "🛑")) {
+    // 2.0.1~2.0.2 에서 쓰던 기호를 새 기본 기호(□)로
+    patch.blockPage = { ...DEFAULTS.blockPage };
+  }
+
+  if (!cur.deviceId) {
+    patch.deviceId = Math.random().toString(36).slice(2, 10);
+  }
+  if (!cur.deviceName) {
+    patch.deviceName = defaultDeviceName();
+  }
+  // v1.x 에서 비밀번호를 걸어 두었다면 잠금이 켜진 상태로 넘어온다
+  if (cur.passHash) {
+    patch.lockOn = true;
+  }
+  if (cur.passHash || cur.salt) {
+    await chrome.storage.local.remove(["passHash", "salt"]);
+  }
+
+  if (Object.keys(patch).length) await chrome.storage.local.set(patch);
 }
 
 chrome.storage.onChanged.addListener((changes, area) => {
@@ -149,17 +220,10 @@ chrome.storage.onChanged.addListener((changes, area) => {
 chrome.permissions.onAdded.addListener(() => rebuildRules());
 chrome.permissions.onRemoved.addListener(() => rebuildRules());
 
-// 팝업의 "규칙 다시 적용" 버튼용
-chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
-  if (msg && msg.type === "rebuild") {
-    rebuildRules()
-      .then(() => sendResponse({ ok: true }))
-      .catch((e) => sendResponse({ ok: false, error: String((e && e.message) || e) }));
-    return true; // 비동기 응답
-  }
-});
-
 /* 서비스 워커는 설치·브라우저 시작·잠에서 깰 때 모두 새로 기동되므로
  * onInstalled / onStartup 리스너 없이 이 한 줄이면 충분하다.
  * (리스너를 함께 두면 같은 시점에 두 번 호출되어 ID 중복 오류를 유발했다) */
-rebuildRules();
+initDevice().then(() => {
+  rebuildRules();
+  Sync.init();
+});

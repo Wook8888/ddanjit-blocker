@@ -6,10 +6,11 @@
 <style>
   :root {
     --bg: #fafafa; --fg: #1f2328; --muted: #6b7280;
-    --card: #ffffff; --line: #e5e7eb; --accent: #d93025;
+    --card: #ffffff; --line: #e5e7eb; --accent: #d93025; --ok: #1a7f37;
   }
   @media (prefers-color-scheme: dark) {
-    :root { --bg: #17181a; --fg: #e8eaed; --muted: #9aa0a6; --card: #1f2124; --line: #34363a; --accent: #f2867c; }
+    :root { --bg: #17181a; --fg: #e8eaed; --muted: #9aa0a6; --card: #1f2124;
+            --line: #34363a; --accent: #f2867c; --ok: #6cc17f; }
   }
   * { box-sizing: border-box; }
   html, body { height: 100%; }
@@ -21,28 +22,55 @@
   }
   .card {
     background: var(--card); border: 1px solid var(--line); border-radius: 18px;
-    padding: 44px 40px; max-width: 520px; width: 100%; text-align: center;
+    padding: 44px 40px; max-width: 560px; width: 100%; text-align: center;
     box-shadow: 0 10px 40px rgba(0,0,0,.06);
   }
-  .emoji { font-size: 56px; line-height: 1; }
+  /* 이모지 글꼴을 먼저 지정 — 윈도우에서 네모(□)로 깨지는 문제 방지.
+     기본값은 이모지가 아니라 도형 '□' 이므로 일반 글꼴도 함께 넣어둔다. */
+  .emoji {
+    font-size: 52px; line-height: 1; color: var(--muted);
+    font-family: "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji",
+                 "Pretendard", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+  }
   h1 { font-size: 24px; margin: 18px 0 12px; font-weight: 700; }
   p.message { color: var(--muted); font-size: 15px; line-height: 1.7; white-space: pre-wrap; margin: 0; }
-  .domain {
-    display: inline-block; margin-top: 22px; padding: 7px 14px;
-    background: var(--bg); border: 1px solid var(--line); border-radius: 999px;
-    font-size: 13px; color: var(--muted); font-family: ui-monospace, Menlo, Consolas, monospace;
-    word-break: break-all;
+
+  /* 차단된 주소 */
+  .urlbox {
+    margin-top: 26px; text-align: left;
+    background: var(--bg); border: 1px solid var(--line); border-radius: 12px;
+    padding: 12px 12px 12px 14px;
   }
+  .urlbox .label { font-size: 11.5px; color: var(--muted); margin-bottom: 7px; }
+  .urlrow { display: flex; align-items: flex-start; gap: 10px; }
+  .url {
+    flex: 1; min-width: 0;
+    font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13px; line-height: 1.55;
+    color: var(--fg); word-break: break-all;
+    max-height: 7.8em; overflow-y: auto;
+    user-select: all; cursor: text;
+  }
+  .rule { margin-top: 8px; font-size: 11.5px; color: var(--muted); }
+  .rule code { font-family: ui-monospace, Menlo, Consolas, monospace; }
+
   .foot { margin-top: 26px; font-size: 12px; color: var(--muted); }
   .foot b { color: var(--accent); font-weight: 600; }
 </style>
 </head>
 <body>
   <div class="card">
-    <div class="emoji" id="emoji">🛑</div>
+    <div class="emoji" id="emoji">□</div>
     <h1 id="title">잠깐! 지금은 접속할 수 없어요</h1>
     <p class="message" id="message"></p>
-    <div class="domain" id="domain"></div>
+
+    <div class="urlbox" id="urlbox" hidden>
+      <div class="label">차단된 주소</div>
+      <div class="urlrow">
+        <div class="url" id="url"></div>
+      </div>
+      <div class="rule" id="rule" hidden>차단 규칙: <code id="ruleDomain"></code></div>
+    </div>
+
     <div class="foot"><b>딴짓 차단기</b>가 이 페이지를 막았습니다.</div>
     <div class="foot" style="margin-top:10px; opacity:.75;">
       예외로 허용해둔 주소인데 이 화면이 보인다면, 이 페이지를 새로고침하지 말고<br>

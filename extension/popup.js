@@ -1,74 +1,11 @@
 /* 딴짓 차단기 - 팝업 UI */
 
-const DEFAULTS = {
-  blocked: [],
-  allowed: [],
-  enabled: true,
-  passHash: "",
-  salt: "",
-  lastError: "",
-  blockPage: {
-    title: "잠깐! 지금은 접속할 수 없어요",
-    message: "이 사이트는 사용자가 직접 차단 목록에 추가했습니다.\n지금 해야 할 일로 돌아가 볼까요?",
-    emoji: "🛑"
-  }
-};
-
-const UNLOCK_MINUTES = 5;
-const ALLOW_RULE_BASE = 100000;
 const $ = (id) => document.getElementById(id);
 
 let state = null;
 let permCache = {}; // domain → boolean
 
-/* ---------- 유틸 ---------- */
-
-async function sha256(text) {
-  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
-  return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
-}
-
-function randomSalt() {
-  const a = crypto.getRandomValues(new Uint8Array(16));
-  return [...a].map((b) => b.toString(16).padStart(2, "0")).join("");
-}
-
-/**
- * 입력값에서 호스트만 뽑아낸다.
- * URL 파서를 쓰므로 한글 도메인은 자동으로 퓨니코드(xn--...)로 변환된다.
- * DNR 의 urlFilter 는 ASCII 만 허용하기 때문에 이 변환이 반드시 필요하다.
- */
-function normalizeDomain(raw) {
-  let v = (raw || "").trim();
-  if (!v) return null;
-  if (!/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(v)) v = "https://" + v;
-
-  let host;
-  try {
-    host = new URL(v).hostname;
-  } catch (e) {
-    return null;
-  }
-  if (!host || host.startsWith("[")) return null; // 빈 값·IPv6 제외
-
-  host = host.toLowerCase();
-  if (!/^[a-z0-9.-]+$/.test(host)) return null; // ASCII 만 (퓨니코드 변환 후에도 남는 이상 문자 차단)
-  // TLD 가 있어야 함. xn-- 로 시작하는 국제화 TLD(.한국 → .xn--3e0b707e)도 허용하고,
-  // 숫자만으로 끝나는 IP 주소는 배제한다.
-  if (!/\.(?:[a-z]{2,}|xn--[a-z0-9-]{2,})$/.test(host)) return null;
-  return host;
-}
-
-/** 차단 목록에서 www. 는 의미가 없으므로 제거 (서브도메인까지 함께 차단되므로) */
-function normalizeBlockDomain(raw) {
-  const v = normalizeDomain(raw);
-  return v ? v.replace(/^www\./, "") : null;
-}
-
-/** a 가 b 자신이거나 b의 서브도메인인가 */
-function isUnder(a, b) {
-  return a === b || a.endsWith("." + b);
-}
+/* ---------- 유틸 (공용 함수는 common.js) ---------- */
 
 function setMsg(el, text, kind) {
   el.textContent = text;
@@ -86,11 +23,6 @@ async function save(patch) {
 }
 
 /* ---------- 사이트별 권한 ---------- */
-
-/** 도메인과 모든 서브도메인을 포함하는 match pattern */
-function originPattern(domain) {
-  return "*://*." + domain + "/*";
-}
 
 async function refreshPermissions() {
   permCache = {};
@@ -121,20 +53,59 @@ function requestOrigins(domains) {
   });
 }
 
-/* ---------- 잠금 ---------- */
+/* ---------- 잠금 (단어 문제) ---------- */
 
-async function isUnlocked() {
-  if (!state.passHash) return true;
-  const { unlockUntil = 0 } = await chrome.storage.session.get({ unlockUntil: 0 });
-  return Date.now() < unlockUntil;
+let currentQ = null;
+let lastWord = "";
+let answering = false;
+
+function renderQuestion() {
+  currentQ = buildQuestion(state.words, lastWord);
+  if (!currentQ) return false;
+  lastWord = currentQ.word.word;
+
+  $("qWord").textContent = currentQ.word.word;
+  $("qIpa").textContent = currentQ.word.ipa || "";
+  const tail = [currentQ.word.read, currentQ.word.lang].filter(Boolean).join(" · ");
+  $("qRead").textContent = tail;
+
+  const box = $("qOpts");
+  box.innerHTML = "";
+  currentQ.options.forEach((text, i) => {
+    const btn = document.createElement("button");
+    btn.textContent = text;
+    btn.addEventListener("click", () => answer(i, box));
+    box.appendChild(btn);
+  });
+  return true;
 }
 
-async function markUnlocked() {
-  await chrome.storage.session.set({ unlockUntil: Date.now() + UNLOCK_MINUTES * 60 * 1000 });
-}
+function answer(picked, box) {
+  if (answering) return;
+  answering = true;
+  const correct = picked === currentQ.answer;
 
-async function checkPassword(input) {
-  return (await sha256(state.salt + ":" + input)) === state.passHash;
+  [...box.children].forEach((btn, i) => {
+    btn.disabled = true;
+    if (i === currentQ.answer) btn.classList.add("right");
+    else if (i === picked) btn.classList.add("wrong");
+  });
+
+  if (correct) {
+    setMsg($("lockMsg"), "");
+    setTimeout(async () => {
+      answering = false;
+      await markUnlocked();
+      await showMain();
+    }, 380);
+  } else {
+    setMsg($("lockMsg"), "다시 한 문제 더.", "err");
+    setTimeout(() => {
+      answering = false;
+      setMsg($("lockMsg"), "");
+      renderQuestion();
+    }, 950);
+  }
 }
 
 /* ---------- 목록 렌더링 ---------- */
@@ -240,38 +211,11 @@ function renderPermissionBanner() {
 function renderSettings() {
   $("enabledToggle").checked = state.enabled;
   $("statusText").textContent = state.enabled ? "차단 작동 중" : "차단 일시 중지됨";
-  $("bpEmoji").value = state.blockPage.emoji;
-  $("bpTitle").value = state.blockPage.title;
-  $("bpMessage").value = state.blockPage.message;
-  const hasPw = !!state.passHash;
-  $("pwLabel").textContent = hasPw ? "비밀번호 변경 / 해제" : "비밀번호 설정";
-  $("pwCurrent").classList.toggle("hidden", !hasPw);
+  $("lockToggle").checked = !!state.lockOn;
+  if (document.activeElement !== $("devName")) $("devName").value = state.deviceName || "";
 }
 
-/* ---------- 진단 ---------- */
-
-function describeRule(r) {
-  const kind = r.id >= ALLOW_RULE_BASE ? "예외" : "차단";
-  const filter = (r.condition && r.condition.urlFilter) || "?";
-  const excl = r.condition && r.condition.excludedRequestDomains;
-  return `#${r.id} p${r.priority} ${kind}(${r.action.type})  ${filter}` +
-         (excl && excl.length ? `\n      └ 제외: ${excl.join(", ")}` : "");
-}
-
-async function renderRuleDump() {
-  const el = $("ruleDump");
-  try {
-    const rules = await chrome.declarativeNetRequest.getDynamicRules();
-    if (!rules.length) {
-      el.textContent = "등록된 규칙이 없습니다.";
-      return;
-    }
-    rules.sort((a, b) => a.id - b.id);
-    el.textContent = rules.map(describeRule).join("\n");
-  } catch (e) {
-    el.textContent = "규칙을 읽지 못했습니다: " + String((e && e.message) || e);
-  }
-}
+/* ---------- 오류 배너 ---------- */
 
 function renderError() {
   const el = $("errorBanner");
@@ -283,40 +227,26 @@ function renderError() {
   }
 }
 
-async function runTest() {
-  const el = $("testResult");
-  let raw = $("testUrl").value.trim();
-  if (!raw) {
-    setMsg(el, "테스트할 주소를 입력하세요.", "err");
-    return;
-  }
-  if (!/^[a-z]+:\/\//i.test(raw)) raw = "https://" + raw;
+/* ---------- 크롬 동기화 줄 ---------- */
 
-  if (!chrome.declarativeNetRequest.testMatchOutcome) {
-    setMsg(el, "이 크롬 버전에서는 테스트 기능을 쓸 수 없습니다.", "err");
+async function renderSync() {
+  const el = $("syncLine");
+  const { syncStatus = {} } = await chrome.storage.local.get("syncStatus");
+  if (syncStatus.error) {
+    el.textContent = "⚠ " + syncStatus.error;
+    el.className = "syncLine err";
+    el.title = "";
     return;
   }
-  try {
-    const res = await chrome.declarativeNetRequest.testMatchOutcome({
-      url: raw,
-      type: "main_frame",
-      method: "get"
-    });
-    const matched = res.matchedRules || [];
-    if (!matched.length) {
-      setMsg(el, "✅ 통과 — 어떤 규칙에도 걸리지 않습니다.", "ok");
-      return;
-    }
-    const ids = matched.map((m) => m.ruleId);
-    const blockedBy = ids.filter((id) => id < ALLOW_RULE_BASE);
-    const allowedBy = ids.filter((id) => id >= ALLOW_RULE_BASE);
-    if (allowedBy.length) {
-      setMsg(el, `✅ 허용 — 예외 규칙 #${allowedBy.join(", #")} 이 적용됩니다.`, "ok");
-    } else {
-      setMsg(el, `🛑 차단 — 차단 규칙 #${blockedBy.join(", #")} 에 걸립니다.`, "err");
-    }
-  } catch (e) {
-    setMsg(el, "테스트 실패: " + String((e && e.message) || e), "err");
+  const hist = await readHistory();
+  const last = hist[0];
+  el.className = "syncLine";
+  if (last) {
+    el.textContent = `🔄 ${last.d}에서 변경 · ${timeAgo(last.at)}`;
+    el.title = "누르면 동기화 기록을 볼 수 있습니다";
+  } else {
+    el.textContent = "🔄 크롬 동기화";
+    el.title = "같은 구글 계정으로 로그인해 동기화를 켠 크롬끼리 목록이 자동으로 맞춰집니다.";
   }
 }
 
@@ -330,7 +260,7 @@ async function reload() {
   renderAllowedList();
   renderSettings();
   renderError();
-  setTimeout(renderRuleDump, 400);
+  renderSync();
 }
 
 async function showMain() {
@@ -342,7 +272,10 @@ async function showMain() {
 function showLock() {
   $("main").classList.add("hidden");
   $("lock").classList.remove("hidden");
-  $("unlockInput").focus();
+  if (!renderQuestion()) {
+    // 문제를 만들 단어가 없으면 잠그지 않는다 (잠겨서 못 들어가는 일 방지)
+    markUnlocked().then(showMain);
+  }
 }
 
 /* ---------- 추가 동작 ---------- */
@@ -399,19 +332,6 @@ async function addAllowed() {
 /* ---------- 이벤트 ---------- */
 
 function wireEvents() {
-  $("unlockBtn").addEventListener("click", async () => {
-    if (await checkPassword($("unlockInput").value)) {
-      await markUnlocked();
-      await showMain();
-    } else {
-      showMsg($("lockMsg"), "비밀번호가 올바르지 않습니다.", "err");
-      $("unlockInput").select();
-    }
-  });
-  $("unlockInput").addEventListener("keydown", (e) => {
-    if (e.key === "Enter") $("unlockBtn").click();
-  });
-
   $("enabledToggle").addEventListener("change", async (e) => {
     await save({ enabled: e.target.checked });
     renderSettings();
@@ -427,68 +347,50 @@ function wireEvents() {
     if (e.key === "Enter") addAllowed();
   });
 
-  $("testBtn").addEventListener("click", runTest);
-  $("testUrl").addEventListener("keydown", (e) => {
-    if (e.key === "Enter") runTest();
+  $("backupBtn").addEventListener("click", () => chrome.runtime.openOptionsPage());
+  $("syncLine").addEventListener("click", () => {
+    chrome.tabs.create({ url: chrome.runtime.getURL("options.html#history") });
+    window.close();
   });
 
-  $("reloadRulesBtn").addEventListener("click", async () => {
-    setMsg($("reloadMsg"), "적용 중…", "");
-    try {
-      const res = await chrome.runtime.sendMessage({ type: "rebuild" });
-      if (res && res.ok) {
-        await reload();
-        setMsg($("reloadMsg"), "규칙을 다시 적용했습니다.", "ok");
-      } else {
-        setMsg($("reloadMsg"), "실패: " + ((res && res.error) || "응답 없음"), "err");
-      }
-    } catch (e) {
-      setMsg($("reloadMsg"), "실패: " + String((e && e.message) || e), "err");
-    }
+  $("lockToggle").addEventListener("change", async (e) => {
+    const on = e.target.checked;
+    await save({ lockOn: on });
+    if (on) await markUnlocked(); // 방금 켠 사람을 바로 내쫓지 않는다
+    showMsg($("lockSetMsg"), on
+      ? "잠금을 켰습니다. 다음에 열 때 단어 문제가 나옵니다."
+      : "잠금을 껐습니다.", "ok");
   });
 
-  $("savePageBtn").addEventListener("click", async () => {
-    await save({
-      blockPage: {
-        emoji: $("bpEmoji").value.trim() || "🛑",
-        title: $("bpTitle").value.trim() || DEFAULTS.blockPage.title,
-        message: $("bpMessage").value
-      }
-    });
-    showMsg($("pageMsg"), "차단 페이지를 저장했습니다.", "ok");
+  $("saveDevBtn").addEventListener("click", async () => {
+    const name = $("devName").value.trim().slice(0, 24);
+    await save({ deviceName: name || defaultDeviceName() });
+    $("devName").value = state.deviceName;
+    showMsg($("devMsg"), "기기 이름을 저장했습니다.", "ok");
   });
-
-  $("savePwBtn").addEventListener("click", async () => {
-    const hasPw = !!state.passHash;
-    if (hasPw && !(await checkPassword($("pwCurrent").value))) {
-      showMsg($("pwMsg"), "현재 비밀번호가 올바르지 않습니다.", "err");
-      return;
-    }
-    const next = $("pwNew").value;
-    if (!next) {
-      await save({ passHash: "", salt: "" });
-      await chrome.storage.session.remove("unlockUntil");
-      showMsg($("pwMsg"), hasPw ? "비밀번호를 해제했습니다." : "비밀번호를 입력하세요.", hasPw ? "ok" : "err");
-    } else if (next.length < 4) {
-      showMsg($("pwMsg"), "비밀번호는 4자 이상이어야 합니다.", "err");
-      return;
-    } else {
-      const salt = randomSalt();
-      await save({ salt, passHash: await sha256(salt + ":" + next) });
-      await markUnlocked();
-      showMsg($("pwMsg"), "비밀번호를 저장했습니다.", "ok");
-    }
-    $("pwCurrent").value = "";
-    $("pwNew").value = "";
-    renderSettings();
+  $("devName").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") $("saveDevBtn").click();
   });
 }
 
 /* ---------- 시작 ---------- */
 
+// 다른 기기에서 동기화로 목록이 바뀌면 팝업을 연 채로도 바로 반영
+chrome.storage.onChanged.addListener(async (changes, area) => {
+  if (area !== "local" || !state || $("main").classList.contains("hidden")) return;
+  if (changes.blocked || changes.allowed) {
+    state = await chrome.storage.local.get(DEFAULTS);
+    await refreshPermissions();
+    renderPermissionBanner();
+    renderBlockedList();
+    renderAllowedList();
+  }
+  if (changes.syncStatus) renderSync();
+});
+
 (async function init() {
   state = await chrome.storage.local.get(DEFAULTS);
   wireEvents();
-  if (await isUnlocked()) await showMain();
+  if (await isUnlocked(state)) await showMain();
   else showLock();
 })();

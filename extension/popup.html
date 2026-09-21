@@ -55,7 +55,8 @@
   .switch input:checked + .slider:before { transform: translateX(16px); }
 
   .row { display: flex; gap: 6px; }
-  input[type="text"], input[type="password"], textarea {
+  .rowBetween { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  input[type="text"], textarea {
     width: 100%; padding: 8px 10px; border: 1px solid var(--line);
     border-radius: 8px; background: var(--bg); color: var(--fg);
     font-family: inherit; font-size: 13px;
@@ -104,6 +105,7 @@
   summary { cursor: pointer; font-weight: 600; font-size: 12.5px; }
   .field { margin-top: 9px; }
   .field label { display: block; font-size: 11.5px; color: var(--muted); margin-bottom: 4px; }
+  .fieldTitle { font-size: 12.5px; font-weight: 600; }
   .hint { font-size: 11px; color: var(--muted); margin-top: 6px; line-height: 1.5; }
   .msg { font-size: 11.5px; margin-top: 6px; min-height: 15px; line-height: 1.4; }
   .msg.ok { color: var(--ok); }
@@ -111,13 +113,19 @@
   .msg.warn { color: #b26a00; }
   @media (prefers-color-scheme: dark) { .msg.warn { color: #e0a458; } }
   .hidden { display: none !important; }
-
-  pre.dump {
-    background: var(--chip); border-radius: 8px; padding: 9px 10px; margin: 8px 0 0;
-    font-family: ui-monospace, Consolas, monospace; font-size: 10.5px; line-height: 1.6;
-    white-space: pre-wrap; word-break: break-all; max-height: 150px; overflow-y: auto;
-    color: var(--fg);
+  .divider { border-top: 1px solid var(--line); margin-top: 12px; padding-top: 4px; }
+  .backupBtn {
+    width: 100%; margin-top: 12px; display: flex; justify-content: space-between; align-items: center;
   }
+  .backupBtn span { font-size: 11px; color: var(--muted); }
+  .syncLine {
+    display: block; width: 100%; margin-top: 8px; padding: 6px 4px;
+    background: none; border: none; text-align: center;
+    font-size: 11px; color: var(--muted); cursor: pointer;
+  }
+  .syncLine:hover { color: var(--fg); border: none; }
+  .syncLine.err { color: #b26a00; }
+  @media (prefers-color-scheme: dark) { .syncLine.err { color: #e0a458; } }
   .banner {
     background: #fdeceb; border: 1px solid var(--accent); color: #a5251c;
     border-radius: 8px; padding: 8px 10px; font-size: 11.5px; margin-bottom: 10px;
@@ -141,9 +149,23 @@
   }
   button.chip:hover { filter: brightness(1.08); }
 
-  #lock { text-align: center; padding: 22px 4px; }
-  #lock .lockIcon { font-size: 30px; }
-  #lock p { color: var(--muted); font-size: 12px; margin: 8px 0 14px; }
+  /* 잠금 화면 — 단어 문제 */
+  #lock { text-align: center; padding: 14px 2px 4px; }
+  #lock .lockIcon { font-size: 26px; }
+  #lock .lockHint { color: var(--muted); font-size: 11.5px; margin: 6px 0 16px; line-height: 1.5; }
+  .qWord { font-size: 19px; font-weight: 700; letter-spacing: -.3px; word-break: keep-all; }
+  .qIpa {
+    font-size: 14px; margin-top: 5px;
+    font-family: "Gentium Plus", "Charis SIL", "DejaVu Sans", "Segoe UI", system-ui, sans-serif;
+  }
+  .qRead { font-size: 11.5px; color: var(--muted); margin-top: 5px; }
+  .qOpts { display: grid; gap: 6px; margin-top: 15px; text-align: left; }
+  .qOpts button {
+    width: 100%; white-space: normal; line-height: 1.45;
+    padding: 9px 11px; font-size: 12.5px;
+  }
+  .qOpts button.right { border-color: var(--ok); color: var(--ok); }
+  .qOpts button.wrong { border-color: var(--accent); color: var(--accent); }
 </style>
 </head>
 <body>
@@ -151,12 +173,12 @@
 <!-- 잠금 화면 -->
 <section id="lock" class="hidden">
   <div class="lockIcon">🔒</div>
-  <p>설정이 잠겨 있습니다.<br>비밀번호를 입력하세요.</p>
-  <div class="row">
-    <input type="password" id="unlockInput" placeholder="비밀번호" autocomplete="off" />
-    <button class="primary" id="unlockBtn">해제</button>
-  </div>
-  <div class="msg err" id="lockMsg"></div>
+  <div class="lockHint">잠겨 있습니다.<br>뜻을 맞히면 5분 동안 열립니다.</div>
+  <div class="qWord" id="qWord"></div>
+  <div class="qIpa" id="qIpa"></div>
+  <div class="qRead" id="qRead"></div>
+  <div class="qOpts" id="qOpts"></div>
+  <div class="msg" id="lockMsg"></div>
 </section>
 
 <!-- 메인 화면 -->
@@ -197,59 +219,38 @@
   <details id="settings">
     <summary>설정</summary>
 
-    <div class="field">
-      <label for="bpEmoji">차단 페이지 이모지</label>
-      <input type="text" id="bpEmoji" maxlength="4" />
+    <div class="field rowBetween">
+      <div>
+        <div class="fieldTitle">잠금</div>
+        <div class="hint" style="margin-top:2px">팝업을 열 때 단어 문제를 냅니다</div>
+      </div>
+      <label class="switch" title="잠금 켜기/끄기">
+        <input type="checkbox" id="lockToggle" />
+        <span class="slider"></span>
+      </label>
     </div>
-    <div class="field">
-      <label for="bpTitle">차단 페이지 제목</label>
-      <input type="text" id="bpTitle" />
+    <div class="hint">
+      한 번 맞히면 5분 동안 열려 있습니다. 문제로 나올 단어는
+      <b>백업 · 불러오기</b>의 엑셀 '단어' 시트에서 직접 고칠 수 있습니다.
     </div>
-    <div class="field">
-      <label for="bpMessage">차단 페이지 안내 문구</label>
-      <textarea id="bpMessage"></textarea>
-    </div>
-    <div class="field">
-      <button class="primary" id="savePageBtn">차단 페이지 저장</button>
-    </div>
-    <div class="msg" id="pageMsg"></div>
+    <div class="msg" id="lockSetMsg"></div>
 
-    <div class="field" style="border-top:1px solid var(--line); padding-top:10px;">
-      <label id="pwLabel" for="pwNew">비밀번호 설정</label>
-      <input type="password" id="pwCurrent" class="hidden" placeholder="현재 비밀번호" autocomplete="off" style="margin-bottom:6px;" />
-      <input type="password" id="pwNew" placeholder="새 비밀번호 (비우면 해제)" autocomplete="off" />
-    </div>
-    <div class="field">
-      <button class="primary" id="savePwBtn">비밀번호 저장</button>
-    </div>
-    <div class="msg" id="pwMsg"></div>
-    <div class="hint">비밀번호를 설정하면 팝업을 열 때마다 입력해야 목록을 수정할 수 있습니다. 한 번 해제하면 5분간 유지됩니다.</div>
-  </details>
-
-  <details id="diag">
-    <summary>진단</summary>
-
-    <div class="field">
-      <label for="testUrl">이 주소가 차단되는지 테스트</label>
+    <div class="field divider">
+      <label for="devName">기기 이름 · 동기화 기록에 표시됩니다</label>
       <div class="row">
-        <input type="text" id="testUrl" placeholder="https://map.naver.com" autocomplete="off" />
-        <button id="testBtn">테스트</button>
+        <input type="text" id="devName" placeholder="예: 회사 PC" maxlength="24" autocomplete="off" />
+        <button id="saveDevBtn">저장</button>
       </div>
     </div>
-    <div class="msg" id="testResult"></div>
-
-    <div class="field">
-      <button id="reloadRulesBtn">규칙 다시 적용</button>
-    </div>
-    <div class="msg" id="reloadMsg"></div>
-
-    <div class="field">
-      <label>크롬에 실제로 등록된 규칙</label>
-      <pre class="dump" id="ruleDump">불러오는 중…</pre>
-    </div>
+    <div class="msg" id="devMsg"></div>
   </details>
+
+  <button id="backupBtn" class="backupBtn">백업 · 불러오기 <span>엑셀 파일</span></button>
+  <button class="syncLine" id="syncLine"></button>
 </section>
 
+<script src="common.js"></script>
+<script src="words.js"></script>
 <script src="popup.js"></script>
 </body>
 </html>

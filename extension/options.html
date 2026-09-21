@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<title>딴짓 차단기 — 기록 · 백업</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --card: #ffffff; --fg: #1f2328; --muted: #6b7280; --line: #e5e7eb;
+    --accent: #d93025; --ok: #1a7f37; --warn: #b26a00; --chip: #f3f4f6;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #17181a; --card: #1f2124; --fg: #e8eaed; --muted: #9aa0a6; --line: #34363a;
+      --accent: #f2867c; --ok: #6cc17f; --warn: #e0a458; --chip: #292b2f;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 0 20px; background: var(--bg); color: var(--fg);
+    font-family: "Pretendard", "Malgun Gothic", -apple-system, system-ui, sans-serif;
+    font-size: 14px; line-height: 1.6;
+  }
+  .page { max-width: 640px; margin: 0 auto; padding-block: 40px 60px; }
+  header { display: flex; align-items: center; gap: 12px; margin-bottom: 26px; }
+  header img { width: 36px; height: 36px; }
+  header h1 { font-size: 20px; margin: 0; letter-spacing: -.4px; }
+  header .sub { font-size: 12.5px; color: var(--muted); }
+
+  .card {
+    background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+    padding: 20px 22px; margin-bottom: 16px;
+  }
+  .card h2 { font-size: 15px; margin: 0 0 4px; }
+  .card .desc { color: var(--muted); font-size: 13px; margin: 0 0 14px; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+
+  button {
+    font: inherit; font-size: 13.5px; padding: 9px 16px; border-radius: 9px; cursor: pointer;
+    border: 1px solid var(--line); background: var(--chip); color: var(--fg);
+  }
+  button:hover:not(:disabled) { border-color: var(--muted); }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button.primary:hover:not(:disabled) { filter: brightness(1.06); }
+
+  .msg { font-size: 13px; margin-top: 10px; min-height: 20px; }
+  .msg.ok { color: var(--ok); } .msg.err { color: var(--accent); } .msg.warn { color: var(--warn); }
+  .hint { font-size: 12px; color: var(--muted); margin-top: 14px; }
+  [hidden] { display: none !important; }
+
+  /* 잠금 — 단어 문제 */
+  #lock { text-align: center; }
+  #lock .lockIcon { font-size: 30px; }
+  #lock .lockHint { color: var(--muted); font-size: 13px; margin: 8px 0 20px; }
+  .qWord { font-size: 26px; font-weight: 700; letter-spacing: -.5px; }
+  .qIpa {
+    font-size: 17px; margin-top: 6px;
+    font-family: "Gentium Plus", "Charis SIL", "DejaVu Sans", "Segoe UI", system-ui, sans-serif;
+  }
+  .qRead { font-size: 12.5px; color: var(--muted); margin-top: 6px; }
+  .qOpts { display: grid; gap: 8px; margin: 20px auto 0; max-width: 420px; text-align: left; }
+  .qOpts button { width: 100%; text-align: left; padding: 12px 14px; line-height: 1.45; white-space: normal; }
+  .qOpts button.right { border-color: var(--ok); color: var(--ok); }
+  .qOpts button.wrong { border-color: var(--accent); color: var(--accent); }
+
+  /* 동기화 기록 */
+  .hrow { border-top: 1px solid var(--line); }
+  .hrow:first-child { border-top: none; }
+  .hhead {
+    width: 100%; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    background: none; border: none; padding: 11px 2px; text-align: left; border-radius: 0;
+  }
+  .hhead:hover { background: var(--chip); border: none; }
+  .hwhen { font-size: 12.5px; color: var(--muted); min-width: 92px; font-variant-numeric: tabular-nums; }
+  .hdev { font-weight: 600; font-size: 13.5px; }
+  .hcount { font-size: 12.5px; color: var(--muted); margin-left: auto; }
+  .tag {
+    font-size: 11px; padding: 2px 8px; border-radius: 999px;
+    background: var(--chip); color: var(--muted); border: 1px solid var(--line);
+  }
+  .tag.now { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .hbody { padding: 2px 2px 14px; font-size: 12.5px; }
+  .hbody .lbl { color: var(--muted); font-size: 11.5px; margin-bottom: 3px; }
+  .hbody .doms { word-break: break-all; line-height: 1.7; margin-bottom: 10px; }
+  .hbody .doms span {
+    display: inline-block; background: var(--chip); border-radius: 6px;
+    padding: 1px 7px; margin: 0 4px 4px 0;
+  }
+  .hbody .none { color: var(--muted); }
+  .empty { color: var(--muted); font-size: 13px; padding: 6px 0; }
+
+  /* 불러오기 미리보기 */
+  dialog {
+    border: 1px solid var(--line); border-radius: 16px; padding: 0; width: min(480px, calc(100vw - 32px));
+    background: var(--card); color: var(--fg); box-shadow: 0 24px 60px rgba(0,0,0,.25);
+  }
+  dialog::backdrop { background: rgba(0,0,0,.4); }
+  .dlg { padding: 22px 24px; }
+  .dlg h3 { margin: 0 0 4px; font-size: 16px; }
+  .dlg .from { font-size: 12.5px; color: var(--muted); margin-bottom: 16px; }
+  table.cmp { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 14px; }
+  table.cmp th, table.cmp td { padding: 7px 8px; border-bottom: 1px solid var(--line); text-align: left; }
+  table.cmp th { color: var(--muted); font-weight: 500; font-size: 12px; }
+  table.cmp td.n { text-align: right; font-variant-numeric: tabular-nums; }
+  .invalid { font-size: 12px; color: var(--warn); margin-bottom: 14px; word-break: break-all; }
+  .choice { display: grid; gap: 8px; margin-bottom: 16px; }
+  .choice button { text-align: left; padding: 11px 14px; }
+  .choice button b { display: block; font-size: 14px; }
+  .choice button span { font-size: 12px; color: var(--muted); }
+  .choice button.danger b { color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="page">
+  <header>
+    <img src="icons/icon48.png" alt="">
+    <div>
+      <h1 id="pageTitle">기록 · 백업</h1>
+      <div class="sub" id="pageSub">어느 기기가 언제 목록을 바꿨는지 보고, 그때로 되돌릴 수 있습니다</div>
+    </div>
+  </header>
+
+  <!-- 잠금 -->
+  <section class="card" id="lock" hidden>
+    <div class="lockIcon">🔒</div>
+    <div class="lockHint">잠겨 있습니다. 뜻을 맞히면 5분 동안 열립니다.</div>
+    <div class="qWord" id="qWord"></div>
+    <div class="qIpa" id="qIpa"></div>
+    <div class="qRead" id="qRead"></div>
+    <div class="qOpts" id="qOpts"></div>
+    <div class="msg err" id="lockMsg"></div>
+  </section>
+
+  <div id="main" hidden>
+    <!-- 동기화 기록 -->
+    <section class="card" id="histCard">
+      <h2>동기화 기록</h2>
+      <p class="desc">
+        목록이 바뀔 때마다 <b>그때의 전체 목록</b>을 최근 10개까지 남깁니다.
+        줄을 누르면 그때 내용이 펼쳐집니다.
+      </p>
+      <div id="histList"></div>
+      <div class="msg" id="histMsg"></div>
+    </section>
+
+    <!-- 파일 -->
+    <section class="card">
+      <h2>엑셀 파일</h2>
+      <p class="desc">내 컴퓨터에 .xlsx 파일로 저장하거나, 저장해둔 파일을 불러옵니다.</p>
+      <div class="row">
+        <button class="primary" id="exportBtn">엑셀로 내보내기</button>
+        <button id="importBtn">엑셀 파일 불러오기</button>
+        <input type="file" id="fileInput" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>
+      </div>
+      <div class="msg" id="fileMsg"></div>
+    </section>
+
+    <!-- 단어 -->
+    <section class="card">
+      <h2>잠금 문제 단어</h2>
+      <p class="desc" id="wordDesc"></p>
+      <div class="row">
+        <button id="resetWordsBtn">기본 단어로 되돌리기</button>
+      </div>
+      <div class="msg" id="wordMsg"></div>
+      <p class="hint">
+        엑셀로 내보내면 <b>단어</b> 시트가 들어 있습니다. 한 줄에 하나씩
+        <b>단어 · 언어 · 발음기호 · 한국어 발음 · 뜻</b>을 적고 다시 불러오면 됩니다.<br>
+        보기 네 개는 적지 않아도 됩니다. 정답은 그 줄의 뜻이고, 나머지 셋은 다른 줄의 뜻에서 가져옵니다
+        — 그래서 단어가 최소 네 개는 있어야 합니다.
+      </p>
+    </section>
+
+    <!-- 권한 -->
+    <section class="card" id="permCard" hidden>
+      <h2>사이트 권한이 필요합니다</h2>
+      <p class="desc" id="permDesc"></p>
+      <button class="primary" id="permBtn">권한 한 번에 허용</button>
+      <div class="msg" id="permMsg"></div>
+    </section>
+
+    <p class="hint">
+      파일에는 차단 목록 · 예외 목록 · 차단 화면 문구 · 잠금 문제 단어가 들어갑니다.<br>
+      '차단목록'·'예외목록' 시트의 A열에 도메인을 한 줄에 하나씩 적으면 됩니다.
+    </p>
+  </div>
+</div>
+
+<!-- 불러오기 확인 -->
+<dialog id="dlg">
+  <div class="dlg">
+    <h3>불러오기</h3>
+    <div class="from" id="dlgFrom"></div>
+    <table class="cmp">
+      <thead><tr><th></th><th>현재</th><th>파일</th><th>합치면</th></tr></thead>
+      <tbody>
+        <tr><td>차단 목록</td><td class="n" id="cB0"></td><td class="n" id="cB1"></td><td class="n" id="cB2"></td></tr>
+        <tr><td>예외 목록</td><td class="n" id="cA0"></td><td class="n" id="cA1"></td><td class="n" id="cA2"></td></tr>
+        <tr><td>차단 화면 문구</td><td class="n">—</td><td class="n" id="cP1"></td><td class="n">현재 유지</td></tr>
+        <tr><td>잠금 문제 단어</td><td class="n" id="cW0"></td><td class="n" id="cW1"></td><td class="n" id="cW2"></td></tr>
+      </tbody>
+    </table>
+    <div class="invalid" id="dlgInvalid" hidden></div>
+    <div class="choice">
+      <button id="mergeBtn"><b>합치기</b><span>지금 목록은 그대로 두고, 파일에만 있는 주소를 추가합니다.</span></button>
+      <button id="overwriteBtn" class="danger"><b>덮어쓰기</b><span id="overwriteDesc">지금 목록을 지우고 파일 내용으로 바꿉니다.</span></button>
+    </div>
+    <div class="row" style="justify-content:flex-end"><button id="cancelBtn">취소</button></div>
+  </div>
+</dialog>
+
+<script src="common.js"></script>
+<script src="words.js"></script>
+<script src="xlsx.js"></script>
+<script src="options.js"></script>
+</body>
+</html>
