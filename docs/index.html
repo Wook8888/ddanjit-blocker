@@ -67,6 +67,13 @@
 
   footer{margin-top:52px;padding-top:22px;border-top:1px solid var(--line);
          color:var(--muted);font-size:13.5px}
+  ul.no{list-style:none;padding-left:0}
+  ul.no li{position:relative;padding-left:30px}
+  ul.no li::before{content:"✕";position:absolute;left:4px;top:0;color:var(--muted);font-weight:700}
+  .tag{display:inline-block;font-size:12px;font-weight:700;vertical-align:3px;margin-left:8px;
+       padding:2px 9px;border-radius:999px;color:var(--ok);background:var(--okbg);
+       border:1px solid color-mix(in srgb, var(--ok) 35%, transparent)}
+  h3{font-size:16px;margin:26px 0 8px;font-weight:800}
   [hidden]{display:none!important}
 </style>
 </head>
@@ -79,7 +86,7 @@
   </header>
 
   <h1 id="title">개인정보처리방침</h1>
-  <div class="meta" id="meta">최종 수정일 · 시행일: 2026년 9월 11일</div>
+  <div class="meta" id="meta">최종 수정일 · 시행일: 2026년 9월 21일</div>
 
   <div class="lang" role="tablist">
     <button id="btnKo" role="tab" aria-selected="true">한국어</button>
@@ -88,51 +95,59 @@
 
   <!-- ===================== 한국어 ===================== -->
   <section id="ko">
-
     <div class="tldr">
       <strong>한눈에 보기</strong>
-      <p>딴짓 차단기는 <b>어떤 개인정보도 수집하지 않습니다.</b> 외부 서버로 데이터를
-      전송하지 않으며, 사용자가 설정한 내용은 모두 사용자의 브라우저 안에만 저장됩니다.</p>
+      <p>딴짓 차단기는 <b>어떤 개인정보도 수집하지 않습니다.</b> 개발자가 운영하는 서버가 없고,
+      개발자에게 전송되는 데이터도 없습니다. 사용자가 정한 설정은 사용자의 브라우저 안에,
+      크롬 동기화를 켰다면 <b>사용자 본인의 구글 계정</b> 안에만 보관됩니다.</p>
     </div>
 
     <h2>1. 수집하지 않는 정보</h2>
-    <p>이 확장 프로그램은 다음을 포함한 어떤 정보도 수집·저장·전송하지 않습니다.</p>
-    <ul>
-      <li>이름, 이메일, 계정 정보 등 개인 식별 정보</li>
-      <li>방문 기록, 검색 기록, 열람한 페이지의 내용</li>
-      <li>IP 주소, 기기 식별자, 위치 정보</li>
-      <li>사용 통계, 분석 데이터, 오류 보고</li>
-      <li>쿠키, 로그인 정보, 입력한 양식의 내용</li>
+    <p>이 확장 프로그램은 아래 정보를 <b>하나도 수집·저장·전송하지 않습니다.</b></p>
+    <ul class="no">
+      <li><b>이름, 이메일, 계정 정보</b> 등 개인 식별 정보를 <b>수집하지 않습니다.</b></li>
+      <li><b>방문 기록, 검색 기록, 열람한 페이지의 내용</b>을 <b>수집하지 않습니다.</b></li>
+      <li><b>IP 주소, 위치 정보, 하드웨어 기기 식별자</b>(광고 ID·MAC 주소 등)를 <b>수집하지 않습니다.</b></li>
+      <li><b>사용 통계, 분석 데이터, 오류 보고</b>를 <b>수집하지 않습니다.</b></li>
+      <li><b>쿠키, 로그인 정보, 비밀번호, 입력한 양식의 내용</b>을 <b>수집하지 않습니다.</b></li>
     </ul>
-    <p>분석 도구나 광고 SDK를 일절 포함하지 않으며, 외부 서버와 통신하는 코드가
-    존재하지 않습니다.</p>
+    <p>분석 도구나 광고 SDK를 일절 포함하지 않으며, 외부 서버와 통신하는 코드가 존재하지 않습니다.</p>
 
-    <h2>2. 기기에 저장되는 정보</h2>
-    <p>기능 동작을 위해 아래 항목이 <b>사용자의 브라우저에</b> 저장됩니다.
-    크롬의 <code>chrome.storage.local</code> 과 <code>chrome.storage.sync</code> 영역을 사용하며,
-    이 데이터는 <b>개발자에게 전송되지 않습니다.</b></p>
+    <h2>2. 사용자의 브라우저에만 보관되는 설정 <span class="tag">수집 아님</span></h2>
+    <p>아래 항목은 <b>개발자가 수집하는 정보가 아닙니다.</b> 확장 프로그램이 동작하려고
+    사용자의 브라우저 안(크롬의 <code>chrome.storage</code>)에 보관하는 설정이며,
+    <b>개발자에게 전송되지 않습니다.</b></p>
     <div class="scroll">
     <table class="tbl">
-      <tr><th>저장 항목</th><th>내용</th></tr>
-      <tr><td>차단 목록</td><td>사용자가 직접 입력한 도메인 목록</td></tr>
-      <tr><td>예외 목록</td><td>차단 대상에서 제외할 도메인 목록</td></tr>
-      <tr><td>차단 페이지 설정</td><td>차단 시 표시할 문구와 이모지</td></tr>
-      <tr><td>잠금 문제 단어</td><td>잠금을 풀 때 나오는 단어와 뜻 (사용자가 바꿀 수 있음)</td></tr>
-      <tr><td>동기화 기록</td><td>최근 10회의 차단·예외 목록과 그 시각, 사용자가 붙인 기기 이름</td></tr>
-      <tr><td>차단 사용 여부 · 잠금 여부</td><td>기능 켜짐/꺼짐 상태 (기기마다 따로)</td></tr>
+      <tr><th>보관 항목</th><th>내용</th><th>다른 기기와 동기화</th></tr>
+      <tr><td>차단 목록 · 예외 목록</td><td>사용자가 직접 입력한 도메인</td><td>예</td></tr>
+      <tr><td>차단 화면 문구</td><td>차단 화면에 표시할 기호와 짧은 문구</td><td>예</td></tr>
+      <tr><td>잠금 문제 단어</td><td>잠금을 풀 때 나오는 단어·발음·뜻 (사용자가 바꿀 수 있음)</td><td>예</td></tr>
+      <tr><td>동기화 기록</td><td>최근 10회의 차단·예외 목록, 바뀐 시각, 바꾼 기기의 이름</td><td>예</td></tr>
+      <tr><td>기기 이름 · 기기 구분 번호</td><td>사용자가 붙인 기기 이름("회사 PC" 등)과,
+        내 기기끼리 구분하려고 확장 프로그램이 임의로 만든 짧은 번호.
+        하드웨어 정보와는 무관합니다.</td><td>기록 안에서만</td></tr>
+      <tr><td>차단 켜짐 · 잠금 켜짐</td><td>기능 켜짐/꺼짐 상태</td><td>아니요 (기기마다 따로)</td></tr>
+      <tr><td>잠금 해제 시각</td><td>문제를 맞힌 뒤 5분 동안 열어 두기 위한 시각.
+        브라우저를 닫으면 사라집니다.</td><td>아니요</td></tr>
     </table>
     </div>
     <p>이 확장 프로그램은 <b>비밀번호를 사용하지 않습니다.</b> 잠금은 단어 문제로만 이루어지며,
     계정·이메일·비밀번호를 묻거나 저장하지 않습니다.</p>
 
-    <h3 style="font-size:1rem;margin-top:1.4rem">크롬 동기화에 대하여</h3>
-    <p>사용자가 크롬 동기화를 켜 두었다면, 위 항목 중 <b>차단 목록 · 예외 목록 · 차단 페이지 설정 ·
-    잠금 문제 단어 · 동기화 기록</b>이 <code>chrome.storage.sync</code> 를 통해
-    <b>사용자 본인의 구글 계정</b>에 저장되어 같은 계정으로 로그인한 사용자 본인의 다른 크롬으로 전달됩니다.
-    이 전달은 구글이 제공하는 크롬 동기화 기능으로 이루어지며,
-    개발자는 이 데이터에 접근할 수 없고 중간에 어떤 서버도 두지 않습니다.
+    <h3>크롬 동기화에 대하여</h3>
+    <p>사용자가 크롬 동기화를 켜 두었다면, 위 표에서 "예"로 표시된 항목이
+    <code>chrome.storage.sync</code> 를 통해 <b>사용자 본인의 구글 계정</b>에 보관되어
+    같은 계정으로 로그인한 <b>사용자 본인의 다른 크롬</b>으로만 전달됩니다.
+    이 전달은 구글이 제공하는 크롬 동기화 기능이 처리하며,
+    <b>개발자는 이 데이터에 접근할 수 없고 중간에 어떤 서버도 두지 않습니다.</b>
     크롬 설정에서 동기화를 끄면 데이터는 그 기기 안에만 남습니다.
     (구글의 처리 방식은 <a href="https://policies.google.com/privacy">구글 개인정보처리방침</a>을 따릅니다.)</p>
+
+    <h3>엑셀 백업 파일에 대하여</h3>
+    <p>사용자가 직접 <b>엑셀로 내보내기</b>를 누른 경우에만, 차단·예외 목록, 차단 화면 문구,
+    잠금 문제 단어가 담긴 파일이 <b>사용자의 컴퓨터에 저장</b>됩니다.
+    이 파일은 어디로도 전송되지 않으며, 보관과 삭제는 사용자가 정합니다.</p>
 
     <h2>3. 요청하는 권한과 사용 목적</h2>
     <div class="scroll">
@@ -140,7 +155,7 @@
       <tr><th>권한</th><th>사용 목적</th></tr>
       <tr>
         <td><code>storage</code></td>
-        <td>위 2항의 설정을 기기에 저장하기 위해 사용합니다.</td>
+        <td>위 2항의 설정을 브라우저에 보관하고, 크롬 동기화를 켠 경우 사용자의 다른 크롬과 맞추기 위해 사용합니다.</td>
       </tr>
       <tr>
         <td><code>declarativeNetRequestWithHostAccess</code></td>
@@ -151,19 +166,21 @@
         <td>사이트 접근 권한<br>(선택적)</td>
         <td>사용자가 차단 목록에 <b>직접 추가한 사이트에 대해서만</b> 그때그때
         요청합니다. 설치 시점에 모든 사이트에 대한 권한을 요구하지 않으며,
-        이 권한은 해당 사이트로의 이동을 차단 페이지로 돌리는 데에만 쓰입니다.</td>
+        이 권한은 해당 사이트로의 이동을 차단 화면으로 돌리는 데에만 쓰입니다.</td>
       </tr>
     </table>
     </div>
 
     <h2>4. 제3자 제공 및 외부 전송</h2>
-    <p>수집하는 정보가 없으므로 제3자에게 제공하거나 판매하는 정보도 없습니다.
-    이 확장 프로그램은 어떤 외부 서버와도 통신하지 않습니다.</p>
+    <p>개발자가 수집하는 정보가 없으므로 제3자에게 제공하거나 판매하는 정보도 없습니다.
+    이 확장 프로그램은 어떤 외부 서버와도 통신하지 않습니다.
+    크롬 동기화를 켠 경우의 기기 간 전달은 사용자 본인의 구글 계정 안에서만 이루어집니다.</p>
 
     <h2>5. 데이터 삭제</h2>
-    <p>저장된 모든 데이터는 사용자의 브라우저 안에만 존재합니다.
-    <code>chrome://extensions</code> 에서 이 확장 프로그램을 삭제하면
-    저장된 설정도 함께 완전히 지워집니다. 별도의 삭제 요청 절차가 필요 없습니다.</p>
+    <p><code>chrome://extensions</code> 에서 이 확장 프로그램을 삭제하면 그 브라우저에 보관된 설정이 함께 지워집니다.
+    크롬 동기화로 구글 계정에 보관된 사본은 모든 기기에서 확장 프로그램을 삭제하거나,
+    <a href="https://chrome.google.com/sync">크롬 동기화 데이터 관리</a> 페이지에서 동기화를 초기화해 지울 수 있습니다.
+    개발자는 이 데이터를 갖고 있지 않으므로 별도의 삭제 요청 절차가 필요 없습니다.</p>
 
     <h2>6. 아동의 개인정보</h2>
     <p>이 확장 프로그램은 연령과 무관하게 어떤 개인정보도 수집하지 않습니다.</p>
@@ -180,51 +197,57 @@
 
   <!-- ===================== English ===================== -->
   <section id="en" hidden>
-
     <div class="tldr">
       <strong>In short</strong>
-      <p>Ddanjit Blocker <b>collects no personal data whatsoever.</b> Nothing is
-      transmitted to any server. Everything you configure stays inside your own browser.</p>
+      <p>Ddanjit Blocker <b>collects no personal data whatsoever.</b> There is no developer
+      server and nothing is sent to the developer. Your settings stay in your own browser —
+      and, if you turn on Chrome Sync, in <b>your own Google account</b>.</p>
     </div>
 
     <h2>1. Information we do not collect</h2>
-    <p>This extension does not collect, store, or transmit any of the following:</p>
-    <ul>
-      <li>Personally identifiable information such as names, emails, or account details</li>
-      <li>Browsing history, search history, or the content of pages you view</li>
-      <li>IP addresses, device identifiers, or location data</li>
-      <li>Usage analytics, telemetry, or crash reports</li>
-      <li>Cookies, credentials, or form input</li>
+    <p>This extension <b>does not collect, store, or transmit any</b> of the following:</p>
+    <ul class="no">
+      <li><b>Names, email addresses, or account details</b> — <b>not collected.</b></li>
+      <li><b>Browsing history, search history, or the content of pages you view</b> — <b>not collected.</b></li>
+      <li><b>IP addresses, location, or hardware device identifiers</b> (advertising ID, MAC address, etc.) — <b>not collected.</b></li>
+      <li><b>Usage analytics, telemetry, or crash reports</b> — <b>not collected.</b></li>
+      <li><b>Cookies, credentials, passwords, or form input</b> — <b>not collected.</b></li>
     </ul>
     <p>The extension contains no analytics or advertising SDKs, and no code that
     communicates with any external server.</p>
 
-    <h2>2. Data stored on your device</h2>
-    <p>The following is stored <b>in your browser</b> via Chrome's
-    <code>chrome.storage.local</code> and <code>chrome.storage.sync</code>.
-    It is <b>never sent to the developer.</b></p>
+    <h2>2. Settings kept only in your browser <span class="tag">not collected</span></h2>
+    <p>The items below are <b>not information collected by the developer.</b> They are settings
+    the extension keeps inside your browser (Chrome's <code>chrome.storage</code>) so that it can work,
+    and they are <b>never sent to the developer.</b></p>
     <div class="scroll">
     <table class="tbl">
-      <tr><th>Item</th><th>Description</th></tr>
-      <tr><td>Block list</td><td>Domains you entered yourself</td></tr>
-      <tr><td>Exception list</td><td>Domains excluded from blocking</td></tr>
-      <tr><td>Block page settings</td><td>Your custom message and emoji</td></tr>
-      <tr><td>Unlock words</td><td>The words and meanings used by the unlock question (editable by you)</td></tr>
-      <tr><td>Sync history</td><td>The last 10 versions of your lists with timestamps and the device names you chose</td></tr>
-      <tr><td>Enabled / lock state</td><td>Whether blocking and the lock are on (per device)</td></tr>
+      <tr><th>Item</th><th>Description</th><th>Synced to your other devices</th></tr>
+      <tr><td>Block list · exception list</td><td>Domains you entered yourself</td><td>Yes</td></tr>
+      <tr><td>Block page text</td><td>The symbol and short message shown on the block page</td><td>Yes</td></tr>
+      <tr><td>Unlock words</td><td>Words, pronunciations and meanings used by the unlock question (editable by you)</td><td>Yes</td></tr>
+      <tr><td>Sync history</td><td>The last 10 versions of your lists, when they changed, and the name of the device that changed them</td><td>Yes</td></tr>
+      <tr><td>Device name · device tag</td><td>The name you give a device ("Work PC") and a short random tag the
+        extension creates to tell your own devices apart. It has nothing to do with hardware.</td><td>Only inside the history</td></tr>
+      <tr><td>Blocking on · lock on</td><td>Whether each feature is turned on</td><td>No (per device)</td></tr>
+      <tr><td>Unlock time</td><td>Keeps settings open for 5 minutes after a correct answer.
+        Cleared when the browser closes.</td><td>No</td></tr>
     </table>
     </div>
     <p>This extension <b>does not use passwords.</b> The lock is a word question only.
     It never asks for or stores an account, email address or password.</p>
 
-    <h3 style="font-size:1rem;margin-top:1.4rem">About Chrome Sync</h3>
-    <p>If you have Chrome Sync enabled, your <b>block list, exception list, block page settings,
-    unlock words and sync history</b> are stored via <code>chrome.storage.sync</code> in
-    <b>your own Google account</b> and delivered to your other Chrome browsers signed in to that
-    same account. This transfer is performed by Google's Chrome Sync feature. The developer cannot
-    access this data and operates no server in between. Turning Chrome Sync off keeps the data on
-    that device only. (Google's handling is governed by the
+    <h3>About Chrome Sync</h3>
+    <p>If you have Chrome Sync enabled, the items marked "Yes" above are kept via
+    <code>chrome.storage.sync</code> in <b>your own Google account</b> and delivered only to
+    <b>your own other Chrome browsers</b> signed in to that account. This is handled by Google's
+    Chrome Sync feature; <b>the developer cannot access this data and operates no server in between.</b>
+    Turning Chrome Sync off keeps the data on that device only. (Google's handling is governed by the
     <a href="https://policies.google.com/privacy">Google Privacy Policy</a>.)</p>
+
+    <h3>About the Excel backup file</h3>
+    <p>Only when you click <b>Export to Excel</b>, a file containing your lists, block page text and
+    unlock words is <b>saved on your computer.</b> It is never sent anywhere; you decide whether to keep or delete it.</p>
 
     <h2>3. Permissions and why they are needed</h2>
     <div class="scroll">
@@ -232,7 +255,7 @@
       <tr><th>Permission</th><th>Purpose</th></tr>
       <tr>
         <td><code>storage</code></td>
-        <td>To save the settings listed in section 2 on your device.</td>
+        <td>To keep the settings in section 2 in your browser and, if Chrome Sync is on, keep them in step with your other Chrome browsers.</td>
       </tr>
       <tr>
         <td><code>declarativeNetRequestWithHostAccess</code></td>
@@ -249,12 +272,15 @@
     </div>
 
     <h2>4. Third parties</h2>
-    <p>Since no data is collected, none is shared or sold. The extension does not
-    communicate with any external server.</p>
+    <p>Since the developer collects no data, none is shared or sold. The extension does not
+    communicate with any external server. Transfer between devices, if you turn on Chrome Sync,
+    happens only within your own Google account.</p>
 
     <h2>5. Deleting your data</h2>
-    <p>All stored data lives only in your browser. Removing the extension from
-    <code>chrome://extensions</code> deletes it completely. No deletion request is needed.</p>
+    <p>Removing the extension from <code>chrome://extensions</code> deletes the settings kept in that browser.
+    The copy kept in your Google account by Chrome Sync is removed when you remove the extension from all
+    your devices, or by resetting sync on the <a href="https://chrome.google.com/sync">Chrome Sync data</a> page.
+    The developer holds none of this data, so no deletion request is needed.</p>
 
     <h2>6. Children's privacy</h2>
     <p>This extension collects no personal data from users of any age.</p>
@@ -298,8 +324,8 @@
     bEn.setAttribute('aria-selected', !isKo);
     document.documentElement.lang = isKo ? 'ko' : 'en';
     title.textContent = isKo ? '개인정보처리방침' : 'Privacy Policy';
-    meta.textContent  = isKo ? '최종 수정일 · 시행일: 2026년 9월 11일'
-                             : 'Last updated · Effective: September 11, 2026';
+    meta.textContent  = isKo ? '최종 수정일 · 시행일: 2026년 9월 21일'
+                             : 'Last updated · Effective: September 21, 2026';
     foot.textContent  = isKo ? '딴짓 차단기 — 크롬 확장 프로그램 · 개인정보처리방침'
                              : 'Ddanjit Blocker — Chrome Extension · Privacy Policy';
     document.title = (isKo ? '딴짓 차단기 — 개인정보처리방침'
