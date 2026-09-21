@@ -113,52 +113,13 @@
     </ul>
     <p>분석 도구나 광고 SDK를 일절 포함하지 않으며, 외부 서버와 통신하는 코드가 존재하지 않습니다.</p>
 
-    <h2>2. 사용자의 브라우저에만 보관되는 설정 <span class="tag">수집 아님</span></h2>
-    <p>아래 항목은 <b>개발자가 수집하는 정보가 아닙니다.</b> 확장 프로그램이 동작하려고
-    사용자의 브라우저 안(크롬의 <code>chrome.storage</code>)에 보관하는 설정이며,
-    <b>개발자에게 전송되지 않습니다.</b></p>
-    <div class="scroll">
-    <table class="tbl">
-      <tr><th>보관 항목</th><th>내용</th><th>다른 기기와 동기화</th></tr>
-      <tr><td>차단 목록 · 예외 목록</td><td>사용자가 직접 입력한 도메인</td><td>예</td></tr>
-      <tr><td>차단 화면 문구</td><td>차단 화면에 표시할 기호와 짧은 문구</td><td>예</td></tr>
-      <tr><td>잠금 문제 단어</td><td>잠금을 풀 때 나오는 단어·발음·뜻 (사용자가 바꿀 수 있음)</td><td>예</td></tr>
-      <tr><td>동기화된 기기 목록</td><td>기기마다 한 줄: 사용자가 붙인 기기 이름("회사 PC" 등),
-        그 기기의 지금 차단·예외 목록, 목록이 마지막으로 바뀐 시각, 동기화 켜짐 여부.
-        목록이 바뀌면 최신 상태로 덮어써지며 쌓이지 않습니다. 사용자가 언제든 지울 수 있습니다.</td>
-        <td>예 (이 기기에서 동기화를 켠 경우만)</td></tr>
-      <tr><td>기기 구분 번호</td><td>내 기기끼리 구분하려고 확장 프로그램이 임의로 만든 짧은 번호.
-        하드웨어 정보와는 무관합니다.</td><td>기기 목록 안에서만</td></tr>
-      <tr><td>차단 켜짐 · 잠금 켜짐 · 동기화 켜짐</td><td>기능 켜짐/꺼짐 상태</td><td>아니요 (기기마다 따로)</td></tr>
-      <tr><td>잠금 해제 시각</td><td>문제를 맞힌 뒤 5분 동안 열어 두기 위한 시각.
-        브라우저를 닫으면 사라집니다.</td><td>아니요</td></tr>
-    </table>
-    </div>
-    <p>이 확장 프로그램은 <b>비밀번호를 사용하지 않습니다.</b> 잠금은 단어 문제로만 이루어지며,
-    계정·이메일·비밀번호를 묻거나 저장하지 않습니다.</p>
-
-    <h3>크롬 동기화에 대하여</h3>
-    <p>사용자가 크롬 동기화를 켜 두고 이 확장 프로그램의 <b>이 기기 동기화</b>도 켜 두었다면, 위 표에서 "예"로 표시된 항목이
-    <code>chrome.storage.sync</code> 를 통해 <b>사용자 본인의 구글 계정</b>에 보관되어
-    같은 계정으로 로그인한 <b>사용자 본인의 다른 크롬</b>으로만 전달됩니다.
-    이 전달은 구글이 제공하는 크롬 동기화 기능이 처리하며,
-    <b>개발자는 이 데이터에 접근할 수 없고 중간에 어떤 서버도 두지 않습니다.</b>
-    확장 프로그램 설정에서 <b>이 기기 동기화</b>를 끄거나 크롬 설정에서 동기화를 끄면,
-    그 기기의 목록은 그 기기 안에만 남고 다른 기기와 주고받지 않습니다.
-    (구글의 처리 방식은 <a href="https://policies.google.com/privacy">구글 개인정보처리방침</a>을 따릅니다.)</p>
-
-    <h3>엑셀 백업 파일에 대하여</h3>
-    <p>사용자가 직접 <b>엑셀로 내보내기</b>를 누른 경우에만, 차단·예외 목록, 차단 화면 문구,
-    잠금 문제 단어가 담긴 파일이 <b>사용자의 컴퓨터에 저장</b>됩니다.
-    이 파일은 어디로도 전송되지 않으며, 보관과 삭제는 사용자가 정합니다.</p>
-
-    <h2>3. 요청하는 권한과 사용 목적</h2>
+    <h2>2. 요청하는 권한과 사용 목적</h2>
     <div class="scroll">
     <table class="tbl">
       <tr><th>권한</th><th>사용 목적</th></tr>
       <tr>
         <td><code>storage</code></td>
-        <td>위 2항의 설정을 브라우저에 보관하고, 크롬 동기화를 켠 경우 사용자의 다른 크롬과 맞추기 위해 사용합니다.</td>
+        <td>아래 7항의 설정을 브라우저에 보관하고, 크롬 동기화를 켠 경우 사용자의 다른 크롬과 맞추기 위해 사용합니다.</td>
       </tr>
       <tr>
         <td><code>declarativeNetRequestWithHostAccess</code></td>
@@ -174,24 +135,34 @@
     </table>
     </div>
 
-    <h2>4. 제3자 제공 및 외부 전송</h2>
+    <h2>3. 제3자 제공 및 외부 전송</h2>
     <p>개발자가 수집하는 정보가 없으므로 제3자에게 제공하거나 판매하는 정보도 없습니다.
     이 확장 프로그램은 어떤 외부 서버와도 통신하지 않습니다.
     크롬 동기화를 켠 경우의 기기 간 전달은 사용자 본인의 구글 계정 안에서만 이루어집니다.</p>
 
-    <h2>5. 데이터 삭제</h2>
+    <h2>4. 데이터 삭제</h2>
     <p><code>chrome://extensions</code> 에서 이 확장 프로그램을 삭제하면 그 브라우저에 보관된 설정이 함께 지워집니다.
     크롬 동기화로 구글 계정에 보관된 사본은 모든 기기에서 확장 프로그램을 삭제하거나,
     <a href="https://chrome.google.com/sync">크롬 동기화 데이터 관리</a> 페이지에서 동기화를 초기화해 지울 수 있습니다.
     개발자는 이 데이터를 갖고 있지 않으므로 별도의 삭제 요청 절차가 필요 없습니다.</p>
 
-    <h2>6. 아동의 개인정보</h2>
+    <h2>5. 아동의 개인정보</h2>
     <p>이 확장 프로그램은 연령과 무관하게 어떤 개인정보도 수집하지 않습니다.</p>
 
-    <h2>7. 방침 변경</h2>
+    <h2>6. 방침 변경</h2>
     <p>내용이 변경되면 이 페이지를 갱신하고 상단의 시행일을 함께 수정합니다.
     수집하는 정보가 생기는 등 중대한 변경이 있을 경우 확장 프로그램 업데이트
     안내를 통해 별도로 알립니다.</p>
+
+    <h2>7. 브라우저에만 보관되는 설정 <span class="tag">수집 아님</span></h2>
+    <p>확장 프로그램이 동작하려고 사용자의 브라우저에 아래 설정만 보관합니다. 개발자에게 전송되지 않습니다.</p>
+    <ul>
+      <li>차단 목록 · 예외 목록</li>
+      <li>차단 화면 문구 · 잠금 문제 단어</li>
+      <li>기기 이름(과 구분용 임의 번호), 기능 켜짐/꺼짐 상태</li>
+    </ul>
+    <p>크롬 동기화와 <b>이 기기 동기화</b>를 켜 두면, 이 설정은 <b>사용자 본인의 구글 계정</b>을 통해
+    본인의 다른 크롬으로만 전달됩니다. 엑셀로 내보내기를 누르면 같은 내용이 사용자의 컴퓨터에 파일로 저장됩니다.</p>
 
     <h2>8. 문의</h2>
     <p>개인정보 처리에 관한 문의는 아래로 연락해 주세요.</p>
@@ -219,50 +190,13 @@
     <p>The extension contains no analytics or advertising SDKs, and no code that
     communicates with any external server.</p>
 
-    <h2>2. Settings kept only in your browser <span class="tag">not collected</span></h2>
-    <p>The items below are <b>not information collected by the developer.</b> They are settings
-    the extension keeps inside your browser (Chrome's <code>chrome.storage</code>) so that it can work,
-    and they are <b>never sent to the developer.</b></p>
-    <div class="scroll">
-    <table class="tbl">
-      <tr><th>Item</th><th>Description</th><th>Synced to your other devices</th></tr>
-      <tr><td>Block list · exception list</td><td>Domains you entered yourself</td><td>Yes</td></tr>
-      <tr><td>Block page text</td><td>The symbol and short message shown on the block page</td><td>Yes</td></tr>
-      <tr><td>Unlock words</td><td>Words, pronunciations and meanings used by the unlock question (editable by you)</td><td>Yes</td></tr>
-      <tr><td>Synced device list</td><td>One row per device: the name you give it ("Work PC"), that device's
-        current block and exception lists, when they last changed, and whether its sync is on.
-        Each row is overwritten with the latest state and never accumulates. You can delete rows at any time.</td>
-        <td>Yes (only when sync is on for that device)</td></tr>
-      <tr><td>Device tag</td><td>A short random tag the extension creates to tell your own devices apart.
-        It has nothing to do with hardware.</td><td>Only inside the device list</td></tr>
-      <tr><td>Blocking on · lock on · sync on</td><td>Whether each feature is turned on</td><td>No (per device)</td></tr>
-      <tr><td>Unlock time</td><td>Keeps settings open for 5 minutes after a correct answer.
-        Cleared when the browser closes.</td><td>No</td></tr>
-    </table>
-    </div>
-    <p>This extension <b>does not use passwords.</b> The lock is a word question only.
-    It never asks for or stores an account, email address or password.</p>
-
-    <h3>About Chrome Sync</h3>
-    <p>If you have Chrome Sync enabled and <b>Sync this device</b> is on in the extension, the items marked "Yes" above are kept via
-    <code>chrome.storage.sync</code> in <b>your own Google account</b> and delivered only to
-    <b>your own other Chrome browsers</b> signed in to that account. This is handled by Google's
-    Chrome Sync feature; <b>the developer cannot access this data and operates no server in between.</b>
-    Turning off <b>Sync this device</b> in the extension, or Chrome Sync itself, keeps that device's lists
-    on that device only and stops exchanging them. (Google's handling is governed by the
-    <a href="https://policies.google.com/privacy">Google Privacy Policy</a>.)</p>
-
-    <h3>About the Excel backup file</h3>
-    <p>Only when you click <b>Export to Excel</b>, a file containing your lists, block page text and
-    unlock words is <b>saved on your computer.</b> It is never sent anywhere; you decide whether to keep or delete it.</p>
-
-    <h2>3. Permissions and why they are needed</h2>
+    <h2>2. Permissions and why they are needed</h2>
     <div class="scroll">
     <table class="tbl">
       <tr><th>Permission</th><th>Purpose</th></tr>
       <tr>
         <td><code>storage</code></td>
-        <td>To keep the settings in section 2 in your browser and, if Chrome Sync is on, keep them in step with your other Chrome browsers.</td>
+        <td>To keep the settings in section 7 in your browser and, if Chrome Sync is on, keep them in step with your other Chrome browsers.</td>
       </tr>
       <tr>
         <td><code>declarativeNetRequestWithHostAccess</code></td>
@@ -278,24 +212,34 @@
     </table>
     </div>
 
-    <h2>4. Third parties</h2>
+    <h2>3. Third parties</h2>
     <p>Since the developer collects no data, none is shared or sold. The extension does not
     communicate with any external server. Transfer between devices, if you turn on Chrome Sync,
     happens only within your own Google account.</p>
 
-    <h2>5. Deleting your data</h2>
+    <h2>4. Deleting your data</h2>
     <p>Removing the extension from <code>chrome://extensions</code> deletes the settings kept in that browser.
     The copy kept in your Google account by Chrome Sync is removed when you remove the extension from all
     your devices, or by resetting sync on the <a href="https://chrome.google.com/sync">Chrome Sync data</a> page.
     The developer holds none of this data, so no deletion request is needed.</p>
 
-    <h2>6. Children's privacy</h2>
+    <h2>5. Children's privacy</h2>
     <p>This extension collects no personal data from users of any age.</p>
 
-    <h2>7. Changes to this policy</h2>
+    <h2>6. Changes to this policy</h2>
     <p>If this policy changes, this page and the effective date above will be updated.
     Material changes — such as beginning to collect any data — will additionally be
     announced through the extension's update notes.</p>
+
+    <h2>7. Settings kept only in your browser <span class="tag">not collected</span></h2>
+    <p>To work, the extension keeps only these settings in your browser. They are never sent to the developer.</p>
+    <ul>
+      <li>Block list · exception list</li>
+      <li>Block page text · unlock words</li>
+      <li>Device name (and a random tag to tell your devices apart), on/off states</li>
+    </ul>
+    <p>If Chrome Sync and <b>Sync this device</b> are on, these settings travel only to your own other Chrome
+    browsers through <b>your own Google account</b>. Clicking Export to Excel saves the same content as a file on your computer.</p>
 
     <h2>8. Contact</h2>
     <p>For any privacy-related question, please get in touch:</p>

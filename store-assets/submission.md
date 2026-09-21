@@ -15,15 +15,9 @@
 ```
 Ddanjit Blocker blocks websites that the user chooses.
 
-The user enters domains into a block list in the extension popup. The extension
-turns that list into declarativeNetRequest rules and registers them with Chrome,
-so that navigation to those domains is redirected to a block page bundled inside
-the extension. The user can also add exceptions (for example, block naver.com but
-still allow map.naver.com), customize the text shown on the block page, and
-optionally require a short multiple-choice word question before the settings can
-be changed.
+The user enters domains into a block list in the extension popup. The extension turns that list into declarativeNetRequest rules and registers them with Chrome, so that navigation to those domains is redirected to a block page bundled inside the extension. The user can also add exceptions (for example, block naver.com but still allow map.naver.com), keep the same block list on their own Chrome browsers through Chrome Sync, and optionally lock the settings behind a short word quiz.
 
-That is the extension's only function. It has no other features.
+All of these serve the single purpose of blocking the sites the user chose. The extension has no other features.
 ```
 
 한국어 (이해용)
@@ -46,14 +40,9 @@ That is the extension's only function. It has no other features.
 ### `storage`
 
 ```
-Used to persist the user's own settings: the block list, the exception list, the
-custom block page text and emoji, the words used by the optional unlock question,
-a per-device view of the user's own current lists across their devices, and the enabled/lock/sync state.
+Used to keep the user's own settings in the browser: the block list, the exception list, the block page text, the words used by the optional unlock quiz, the on/off state of blocking, lock and sync, and a device name so the user can see which of their own devices are syncing.
 
-The extension makes no network requests and contacts no server of ours. If the user
-has Chrome Sync enabled, chrome.storage.sync lets Chrome carry these settings between
-the user's own signed-in Chrome browsers. No account, email address or password is
-ever requested or stored.
+The extension makes no network requests and has no server. If the user turns on Chrome Sync, chrome.storage.sync lets Chrome carry these settings only between the user's own signed-in Chrome browsers. No account, email address or password is ever requested or stored.
 ```
 
 > 기기에 사용자 설정을 저장하기 위해서만 사용. 어디로도 전송하지 않음.
