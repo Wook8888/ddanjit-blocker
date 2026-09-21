@@ -165,33 +165,15 @@ async function updateBadge(count, enabled) {
 
 /* ---------- 기기 설정 · 이전 버전에서 넘어오기 ---------- */
 
-/* v1.x 의 기본 차단 화면 문구. 사용자가 손대지 않고 그대로 쓰고 있었다면
- * 새 기본값으로 바꿔준다. 직접 고친 문구는 건드리지 않는다. */
-const OLD_DEFAULT_PAGE = {
-  title: "잠깐! 지금은 접속할 수 없어요",
-  message: "이 사이트는 사용자가 직접 차단 목록에 추가했습니다.\n지금 해야 할 일로 돌아가 볼까요?",
-  emoji: "🛑"
-};
-
 async function initDevice() {
   const cur = await chrome.storage.local.get({
-    deviceName: "", deviceId: "", lockOn: false, passHash: "", salt: "", blockPage: null
+    deviceName: "", deviceId: "", lockOn: false, passHash: "", salt: "", blockPage: null, syncGone: null
   });
   const patch = {};
 
-  const bp = cur.blockPage;
-  if (bp && bp.title === OLD_DEFAULT_PAGE.title && bp.message === OLD_DEFAULT_PAGE.message) {
-    // 이모지를 직접 바꿔 쓰고 있었다면 그것만 남긴다
-    const keep = bp.emoji && bp.emoji !== OLD_DEFAULT_PAGE.emoji;
-    patch.blockPage = keep
-      ? { ...DEFAULTS.blockPage, emoji: bp.emoji }
-      : { ...DEFAULTS.blockPage };
-  } else if (bp && bp.title === DEFAULTS.blockPage.title &&
-             bp.message === DEFAULTS.blockPage.message &&
-             (bp.emoji === "ㅁ" || bp.emoji === "🛑")) {
-    // 2.0.1~2.0.2 에서 쓰던 기호를 새 기본 기호(□)로
-    patch.blockPage = { ...DEFAULTS.blockPage };
-  }
+  // 2.2.0 부터 차단 화면 문구는 고정 — 예전에 저장해 둔 문구는 지운다
+  if (cur.blockPage) await chrome.storage.local.remove("blockPage");
+  if (cur.syncGone !== null) await chrome.storage.local.remove("syncGone");
 
   if (!cur.deviceId) {
     patch.deviceId = Math.random().toString(36).slice(2, 10);

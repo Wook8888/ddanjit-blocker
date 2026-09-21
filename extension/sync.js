@@ -17,18 +17,30 @@
  *   - 목록이 바뀌면 그 칸이 최신 상태로 덮어써진다. 쌓이지 않는다.
  *   - 사용자는 다른 기기의 칸을 지울 수 있고, 그 기기의 목록을 가져올 수 있다.
  *
+ * 이전 목록 보관함 (v_<시각>)
+ *   - 공유 차단·예외 목록이 바뀌기 "직전" 상태를 동기화 저장소에 남긴다.
+ *     빈 기기가 목록을 올려도 그 전의 공유 목록이 기록에 남도록, 기준은 늘 "덮어쓰기 직전의 공유 목록"이다.
+ *   - 직접 바꾼 경우와 다른 기기에서 받은 경우 모두 해당된다. 기록이 공유되므로
+ *     바꾼 기기(올리는 기기)가 한 번만 쓴다.
+ *   - 10분 안에 연달아 바뀐 건 하나로 묶는다 (묶음의 첫 변경 직전 상태만 남는다).
+ *   - 최근 30개, 기록 전체 40KB 까지. 공유 목록이 커지면 오래된 기록부터 비켜 준다.
+ *
+ * 동기화하지 않는 것: 잠금 문제 단어(words) — 기기마다 따로.
+ *   대신 사용자가 직접 올리고 직접 내려받는 "대표 단어 리스트"(rwm, rw0…)이 하나 있다 (common.js).
+ *   이 파일은 단어 페이지에서만 쓰고 읽는다. 여기서는 건드리지 않는다.
+ *
  * 이 기기 동기화 끄기 (syncOn = false)
  *   - 주고받기를 모두 멈춘다. 이 기기 칸에는 "동기화 끔" 표시만 한 번 남긴다.
  *   - 다시 켜면 처음 연결할 때처럼 10분 동안 양쪽 목록을 합친다.
  *
  * 용량 제한 (크롬 고정값)
  *   전체 100KB · 항목 하나당 8KB · 쓰기 분당 120회
- *   → 목록을 7.5KB 이하 조각(b0, b1… / a0… / w0…)으로 나눠 담는다.
+ *   → 목록을 7.5KB 이하 조각(b0, b1… / a0…)으로 나눠 담는다.
  *   → 조각마다 개정 번호(r)를 붙여, 다른 기기에서 일부 조각만 먼저 도착한
  *     어중간한 상태는 적용하지 않는다.
  */
 
-const SYNCED_KEYS = ["blocked", "allowed", "blockPage", "words"];
+const SYNCED_KEYS = ["blocked", "allowed"];
 const SYNC_SCHEMA = 2;
 const CHUNK_BYTES = 7500;
 const ITEM_LIMIT = 7800;        // 항목 하나당 8KB
@@ -38,8 +50,13 @@ const PUSH_DELAY_MS = 1500;
  * "덮어쓰지 않고 합친다". 어느 쪽 목록도 사라지지 않게 하기 위함. */
 const MERGE_WINDOW_MS = 10 * 60 * 1000;
 
+/* 이전 목록 보관함 */
+const VERSION_GROUP_MS = 10 * 60 * 1000; // 10분 안의 연속 변경은 하나로 묶는다
+const VERSION_MAX = 30;
+const VERSION_BUDGET = 40 * 1024;
+
 /* 예전 버전이 남긴 키 — 올릴 때 정리한다 */
-const LEGACY_KEY = /^(passHash|salt|hi|hn|h\d)$/;
+const LEGACY_KEY = /^(passHash|salt|hi|hn|h\d|blockPage)$/; // blockPage: 2.2.0 부터 문구 고정
 
 const Sync = (() => {
   const enc = new TextEncoder();
@@ -85,17 +102,15 @@ const Sync = (() => {
     const rev = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
     const b = chunk("b", uniqSorted(s.blocked), rev);
     const a = chunk("a", uniqSorted(s.allowed), rev);
-    const w = chunk("w", s.words || [], rev); // 단어는 사용자가 정한 순서를 지킨다
+    // 단어는 2.2.0 부터 동기화하지 않는다. w: 0 → 예전 단어 조각(w0…)은 올릴 때 지워진다
     return {
       items: {
         v: SYNC_SCHEMA,
-        meta: { r: rev, b: b.count, a: a.count, w: w.count, at: Date.now() },
+        meta: { r: rev, b: b.count, a: a.count, w: 0, at: Date.now() },
         ...b.items,
-        ...a.items,
-        ...w.items,
-        blockPage: s.blockPage
+        ...a.items
       },
-      counts: { b: b.count, a: a.count, w: w.count }
+      counts: { b: b.count, a: a.count, w: 0 }
     };
   }
 
@@ -115,24 +130,20 @@ const Sync = (() => {
     };
     const blocked = collect("b", m.b);
     const allowed = collect("a", m.a);
-    const words = collect("w", m.w);
-    if (!blocked || !allowed || !words) return null;
+    if (!blocked || !allowed) return null;
+    // 예전 버전이 올린 단어 조각(w…)은 읽지 않는다
     return {
       blocked: uniqSorted(blocked),
       allowed: uniqSorted(allowed),
-      blockPage: all.blockPage,
-      words,
       at: m.at
     };
   }
 
-  /** 두 설정을 합친다: 목록은 합집합, 문구·단어는 원격(먼저 연결된 기기) 우선 */
+  /** 두 설정을 합친다: 목록은 합집합 */
   function merge(remote, local) {
     const out = {
       blocked: uniqSorted([...remote.blocked, ...(local.blocked || [])]),
-      allowed: uniqSorted([...remote.allowed, ...(local.allowed || [])]),
-      blockPage: remote.blockPage || local.blockPage,
-      words: (remote.words && remote.words.length) ? remote.words : (local.words || [])
+      allowed: uniqSorted([...remote.allowed, ...(local.allowed || [])])
     };
     out.allowed = out.allowed.filter((d) => !out.blocked.includes(d));
     return out;
@@ -140,10 +151,55 @@ const Sync = (() => {
 
   const pick = (s) => ({
     blocked: uniqSorted(s.blocked),
-    allowed: uniqSorted(s.allowed),
-    blockPage: s.blockPage,
-    words: s.words || []
+    allowed: uniqSorted(s.allowed)
   });
+
+  const listsOf = (s) => ({ b: uniqSorted(s && s.blocked), a: uniqSorted(s && s.allowed) });
+
+  /* ---------------- 이전 목록 보관함 ---------------- */
+
+  /** 동기화 저장소의 기록들 (오래된 순). 각 {key, c, t, b, a} */
+  function versionsIn(all) {
+    const out = [];
+    for (const [k, v] of Object.entries(all || {})) {
+      if (!k.startsWith(VERSION_PREFIX) || !v || !Array.isArray(v.b) || !Array.isArray(v.a)) continue;
+      out.push({ key: k, c: v.c || 0, t: v.t || v.c || 0, b: v.b, a: v.a });
+    }
+    return out.sort((x, y) => x.c - y.c);
+  }
+
+  /**
+   * 공유 목록 cur 가 next 로 덮어써지기 직전에 부를 것.
+   * 남길 기록과 지울 기록을 돌려준다 (쓰기는 부른 쪽이 한 번에 한다).
+   */
+  function versionPlan(all, cur, next, now = Date.now()) {
+    const plan = { set: {}, remove: [] };
+    if (!cur) return plan;                                   // 아직 공유 목록이 없음
+    const before = listsOf(cur);
+    const after = listsOf(next);
+    if (same(before, after)) return plan;                    // 목록은 그대로
+    if (!before.b.length && !before.a.length) return plan;   // 빈 상태는 되돌릴 가치가 없다
+
+    const list = versionsIn(all);
+    const last = list[list.length - 1];
+    if (last && now - last.c < VERSION_GROUP_MS) return plan; // 10분 묶음 안
+    if (last && same({ b: uniqSorted(last.b), a: uniqSorted(last.a) }, before)) return plan;
+
+    const entry = { c: now, t: cur.at || now, b: before.b, a: before.a };
+    const size = bytes(JSON.stringify(entry));
+    if (size > ITEM_LIMIT) return plan;                      // 너무 긴 목록은 기록하지 못한다
+
+    let total = list.reduce((n, v) => n + bytes(v.key) + bytes(JSON.stringify(all[v.key])), 0);
+    let count = list.length;
+    for (const v of list) {                                  // 오래된 것부터 비킨다
+      if (count < VERSION_MAX && total + size <= VERSION_BUDGET) break;
+      plan.remove.push(v.key);
+      total -= bytes(v.key) + bytes(JSON.stringify(all[v.key]));
+      count--;
+    }
+    plan.set[VERSION_PREFIX + now.toString(36)] = entry;
+    return plan;
+  }
 
   /* ---------------- 상태 기록 ---------------- */
 
@@ -204,15 +260,27 @@ const Sync = (() => {
     const cur = decode(all);
     const legacy = Object.keys(all).filter((k) => LEGACY_KEY.test(k));
 
-    if (!cur || !same(pick(cur), pick(local)) || legacy.length) {
+    if (!cur || !same(pick(cur), pick(local)) || legacy.length || all.w0) {
       const { items, counts } = encode(local);
-      // 목록이 줄어서 남게 된 예전 조각 + 예전 버전 잔재 정리
+      // 목록이 줄어서 남게 된 예전 조각 + 예전 버전 잔재(단어 조각 포함) 정리
       const remove = Object.keys(all).filter((k) => {
         const m = /^([abw])(\d+)$/.exec(k);
         if (m) return Number(m[2]) >= (counts[m[1]] || 0);
         return LEGACY_KEY.test(k);
       });
-      await chrome.storage.sync.set(items);
+      // 덮어쓰기 직전의 공유 목록을 이전 목록 보관함으로 남긴다
+      const plan = versionPlan(all, cur, local);
+      remove.push(...plan.remove);
+      // 공유 목록이 우선 — 전체 용량을 넘으면 오래된 기록부터 더 비킨다
+      const projected = { ...all, ...items, ...plan.set };
+      for (const k of remove) delete projected[k];
+      for (const v of versionsIn(projected)) {
+        if (sizeOf(projected) <= SYNC_BUDGET) break;
+        delete projected[v.key];
+        if (plan.set[v.key]) delete plan.set[v.key];
+        else remove.push(v.key);
+      }
+      await chrome.storage.sync.set({ ...items, ...plan.set });
       if (remove.length) await chrome.storage.sync.remove(remove);
       await setStatus({ at: Date.now(), error: "" });
     }
@@ -325,7 +393,7 @@ const Sync = (() => {
     // 예전 버전 잔재가 있거나 아직 한 번도 안 올렸다면 정리 겸 올린다
     const all = await chrome.storage.sync.get(null);
     if (!pulled && !all.meta) await push(await chrome.storage.local.get(DEFAULTS)); // 아직 아무도 안 올림
-    else if (Object.keys(all).some((k) => LEGACY_KEY.test(k))) {
+    else if (all.w0 || Object.keys(all).some((k) => LEGACY_KEY.test(k))) { // 예전 잔재·단어 조각 정리
       await push(await chrome.storage.local.get(DEFAULTS));
     }
   }
@@ -361,5 +429,6 @@ const Sync = (() => {
   }
 
   // push/pull/onStart 등은 테스트에서 직접 호출하려고 함께 내보낸다
-  return { init, encode, decode, merge, push, pull, onStart, firstLink, markOff, writeOwnEntry };
+  return { init, encode, decode, merge, push, pull, onStart, firstLink, markOff, writeOwnEntry,
+           versionPlan, versionsIn };
 })();

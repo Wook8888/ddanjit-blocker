@@ -15,7 +15,7 @@
 ```
 Ddanjit Blocker blocks websites that the user chooses.
 
-The user enters domains into a block list in the extension popup. The extension turns that list into declarativeNetRequest rules and registers them with Chrome, so that navigation to those domains is redirected to a block page bundled inside the extension. The user can also add exceptions (for example, block naver.com but still allow map.naver.com), keep the same block list on their own Chrome browsers through Chrome Sync, and optionally lock the settings behind a short word quiz.
+The user enters domains into a block list in the extension popup. The extension turns that list into declarativeNetRequest rules and registers them with Chrome, so that navigation to those domains is redirected to a block page bundled inside the extension. The user can also add exceptions (for example, block naver.com but still allow map.naver.com), keep the same block list on their own Chrome browsers through Chrome Sync, and optionally lock the settings behind a short word quiz (which, when the lock is on, is also shown on the block page without ever opening the blocked site).
 
 All of these serve the single purpose of blocking the sites the user chose. The extension has no other features.
 ```
@@ -24,8 +24,8 @@ All of these serve the single purpose of blocking the sites the user chose. The 
 
 > 사용자가 지정한 웹사이트를 차단합니다. 팝업의 차단 목록에 도메인을 입력하면
 > 그 목록을 declarativeNetRequest 규칙으로 만들어 크롬에 등록하고, 해당 도메인으로의
-> 이동을 확장 프로그램에 포함된 차단 페이지로 돌립니다. 예외 지정, 차단 페이지 문구
-> 변경, 설정 변경 시 단어 문제 확인 기능이 있습니다. 이 외의 기능은 없습니다.
+> 이동을 확장 프로그램에 포함된 차단 페이지로 돌립니다. 예외 지정, 기기 간 동기화,
+> 설정 변경 시 단어 문제 확인 기능이 있습니다. 잠금을 켜면 차단 화면에도 단어 문제가 나오지만 사이트는 열리지 않습니다. 이 외의 기능은 없습니다.
 
 > **왜 이렇게 쓰나** — "단일 목적"은 한 문장으로 요약되어야 통과합니다.
 > 기능을 여러 개 나열하면 "목적이 여러 개 아니냐"는 의심을 받습니다.
@@ -40,9 +40,9 @@ All of these serve the single purpose of blocking the sites the user chose. The 
 ### `storage`
 
 ```
-Used to keep the user's own settings in the browser: the block list, the exception list, the block page text, the words used by the optional unlock quiz, the on/off state of blocking, lock and sync, and a device name so the user can see which of their own devices are syncing.
+Used to keep the user's own settings in the browser: the block list, the exception list (with a short history of earlier versions so the user can undo changes), the words used by the optional unlock quiz, the on/off state of blocking, lock and sync, the quiz options (number of questions, wait time after a wrong answer), and a device name so the user can see which of their own devices are syncing.
 
-The extension makes no network requests and has no server. If the user turns on Chrome Sync, chrome.storage.sync lets Chrome carry these settings only between the user's own signed-in Chrome browsers. No account, email address or password is ever requested or stored.
+The extension makes no network requests and has no server. If the user turns on Chrome Sync, chrome.storage.sync lets Chrome carry these settings (quiz words only when the user uploads them as a single shared list) only between the user's own signed-in Chrome browsers. No account, email address or password is ever requested or stored.
 ```
 
 > 기기에 사용자 설정을 저장하기 위해서만 사용. 어디로도 전송하지 않음.

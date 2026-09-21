@@ -27,7 +27,7 @@
   body {
     width: 340px;
     margin: 0;
-    padding: 14px;
+    padding: 12px;
     font-family: "Pretendard", "Malgun Gothic", -apple-system, system-ui, sans-serif;
     font-size: 13px;
     color: var(--fg);
@@ -35,7 +35,7 @@
   }
   header {
     display: flex; align-items: center; justify-content: space-between;
-    margin-bottom: 12px;
+    margin-bottom: 8px;
   }
   h1 { font-size: 15px; margin: 0; font-weight: 700; }
   .sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
@@ -57,14 +57,19 @@
   .row { display: flex; gap: 6px; }
   .rowBetween { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
   input[type="text"], textarea {
-    width: 100%; padding: 8px 10px; border: 1px solid var(--line);
+    width: 100%; padding: 6px 9px; border: 1px solid var(--line);
     border-radius: 8px; background: var(--bg); color: var(--fg);
     font-family: inherit; font-size: 13px;
   }
+  select {
+    background: var(--bg); color: var(--fg); border: 1px solid var(--line);
+    border-radius: 7px; padding: 5px 8px; font: inherit; font-size: 12.5px; cursor: pointer;
+  }
+  select:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
   input:focus, textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
   textarea { resize: vertical; min-height: 58px; }
   button {
-    padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px;
+    padding: 6px 11px; border: 1px solid var(--line); border-radius: 8px;
     background: var(--chip); color: var(--fg); font-family: inherit;
     font-size: 13px; cursor: pointer; white-space: nowrap;
   }
@@ -76,18 +81,21 @@
 
   .secHead {
     display: flex; align-items: baseline; gap: 6px;
-    margin: 14px 0 6px; padding-top: 12px; border-top: 1px solid var(--line);
+    margin: 9px 0 5px; padding-top: 8px; border-top: 1px solid var(--line);
   }
   .secHead:first-of-type { border-top: none; padding-top: 0; margin-top: 4px; }
   .secHead b { font-size: 12.5px; }
   .secHead span { font-size: 11px; color: var(--muted); }
 
-  ul { list-style: none; margin: 8px 0 0; padding: 0; overflow-y: auto; }
-  #list { max-height: 150px; }
-  #allowList { max-height: 110px; }
+  ul { list-style: none; margin: 4px 0 0; padding: 0; overflow-y: auto; }
+  /* 목록은 3줄만 보이고 나머지는 스크롤 (아래 설정 칸을 넉넉히) */
+  /* 3줄 + 네 번째 줄의 절반이 보이게 해서 아래에 더 있다는 걸 알 수 있게 한다
+     (줄 26px × 3 + 간격 3px × 3 + 26px ÷ 2) */
+  #list, #allowList { max-height: 100px; }
   li {
     display: flex; align-items: center; justify-content: space-between;
-    padding: 7px 10px; background: var(--chip); border-radius: 8px; margin-bottom: 5px;
+    padding: 4px 9px; background: var(--chip); border-radius: 7px; margin-bottom: 3px;
+    font-size: 12.5px; line-height: 1.45;
     word-break: break-all;
   }
   li.allowItem { border-left: 3px solid var(--ok); }
@@ -97,25 +105,31 @@
   }
   li .del:hover { color: var(--accent); }
   .empty {
-    color: var(--muted); text-align: center; padding: 14px 0; font-size: 12px;
+    color: var(--muted); text-align: center; padding: 8px 0; font-size: 12px;
     background: transparent !important; justify-content: center; border-left: none !important;
   }
 
-  details { margin-top: 14px; border-top: 1px solid var(--line); padding-top: 10px; }
-  summary { cursor: pointer; font-weight: 600; font-size: 12.5px; }
+  /* 설정: 접을 수 있지만 팝업을 열 때마다 펼쳐진 채로 시작한다 (open 속성) */
+  .settings { margin-top: 8px; border-top: 1px solid var(--line); padding-top: 8px; }
+  .setHead { font-weight: 700; font-size: 12.5px; cursor: pointer; }
   .field { margin-top: 9px; }
   .field label { display: block; font-size: 11.5px; color: var(--muted); margin-bottom: 4px; }
   .fieldTitle { font-size: 12.5px; font-weight: 600; }
   .hint { font-size: 11px; color: var(--muted); margin-top: 6px; line-height: 1.5; }
-  .msg { font-size: 11.5px; margin-top: 6px; min-height: 15px; line-height: 1.4; }
+  .msg { font-size: 11.5px; margin-top: 4px; line-height: 1.4; }
+  .msg:empty { display: none; }
   .msg.ok { color: var(--ok); }
   .msg.err { color: var(--accent); }
   .msg.warn { color: #b26a00; }
   @media (prefers-color-scheme: dark) { .msg.warn { color: #e0a458; } }
   .hidden { display: none !important; }
   .divider { border-top: 1px solid var(--line); margin-top: 12px; padding-top: 4px; }
+  .linkBtn {
+    width: 100%; margin-top: 8px; display: flex; justify-content: space-between; align-items: center;
+  }
+  .linkBtn span { font-size: 11px; color: var(--muted); }
   .backupBtn {
-    width: 100%; margin-top: 12px; display: flex; justify-content: space-between; align-items: center;
+    width: 100%; margin-top: 10px; display: flex; justify-content: space-between; align-items: center;
   }
   .backupBtn span { font-size: 11px; color: var(--muted); }
   .syncLine {
@@ -153,12 +167,16 @@
   #lock { text-align: center; padding: 14px 2px 4px; }
   #lock .lockIcon { font-size: 26px; }
   #lock .lockHint { color: var(--muted); font-size: 11.5px; margin: 6px 0 16px; line-height: 1.5; }
+  .qProg { font-size: 12px; font-weight: 600; color: var(--ok); margin: -8px 0 12px; font-variant-numeric: tabular-nums; }
+  .qProg:empty { display: none; }
   .qWord { font-size: 19px; font-weight: 700; letter-spacing: -.3px; word-break: keep-all; }
   .qIpa {
     font-size: 14px; margin-top: 5px;
     font-family: "Gentium Plus", "Charis SIL", "DejaVu Sans", "Segoe UI", system-ui, sans-serif;
   }
   .qRead { font-size: 11.5px; color: var(--muted); margin-top: 5px; }
+  .qPause { margin-top: 10px; font-size: 11.5px; color: var(--muted); }
+  .qPause select { padding: 2px 6px; font-size: 11.5px; margin: 0 2px; }
   .qOpts { display: grid; gap: 6px; margin-top: 15px; text-align: left; }
   .qOpts button {
     width: 100%; white-space: normal; line-height: 1.45;
@@ -173,12 +191,14 @@
 <!-- 잠금 화면 -->
 <section id="lock" class="hidden">
   <div class="lockIcon">🔒</div>
-  <div class="lockHint">잠겨 있습니다.<br>뜻을 맞히면 5분 동안 열립니다.</div>
+  <div class="lockHint">잠겨 있습니다.<br><span id="lockNeed">뜻을 맞히면 5분 동안 열립니다.</span></div>
+  <div class="qProg" id="qProg"></div>
   <div class="qWord" id="qWord"></div>
   <div class="qIpa" id="qIpa"></div>
   <div class="qRead" id="qRead"></div>
   <div class="qOpts" id="qOpts"></div>
   <div class="msg" id="lockMsg"></div>
+  <div class="qPause">틀리면 <select id="lockPause" title="틀렸을 때 정답을 보여주는 시간"></select> 뒤 다음 문제</div>
 </section>
 
 <!-- 메인 화면 -->
@@ -216,8 +236,8 @@
   <div class="msg" id="allowMsg"></div>
   <ul id="allowList"></ul>
 
-  <details id="settings">
-    <summary>설정</summary>
+  <details id="settings" class="settings" open>
+    <summary class="setHead">설정</summary>
 
     <div class="field rowBetween">
       <div>
@@ -229,10 +249,16 @@
         <span class="slider"></span>
       </label>
     </div>
-    <div class="hint">
-      한 번 맞히면 5분 동안 열려 있습니다. 문제로 나올 단어는
-      <b>백업 · 불러오기</b>의 엑셀 '단어' 시트에서 직접 고칠 수 있습니다.
+    <div class="field rowBetween" style="margin-top:8px">
+      <label for="quizCount" style="margin:0">풀어야 할 문제 수</label>
+      <select id="quizCount" title="잠금을 풀려면 맞혀야 할 문제 수"></select>
     </div>
+    <div class="field rowBetween" style="margin-top:6px">
+      <label for="wrongPause" style="margin:0">틀리면 다음 문제까지</label>
+      <select id="wrongPause" title="틀렸을 때 정답을 보여주는 시간"></select>
+    </div>
+    <div class="hint">정한 개수만큼 맞히면 5분 동안 열려 있습니다. 틀려도 맞힌 개수는 줄지 않고, 정한 시간 동안 정답을 보여준 뒤 다음 문제로 넘어갑니다.</div>
+    <button id="wordsBtn" class="linkBtn">잠금 문제 단어 <span>단어 보기 · 고치기 ›</span></button>
     <div class="msg" id="lockSetMsg"></div>
 
     <div class="field divider rowBetween">

@@ -48,10 +48,29 @@
     font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 13px; line-height: 1.55;
     color: var(--fg); word-break: break-all;
     max-height: 7.8em; overflow-y: auto;
-    user-select: all; cursor: text;
+    user-select: text; cursor: text; /* 원하는 부분만 골라 복사할 수 있게 (클릭 한 번에 전체 선택하지 않음) */
   }
   .rule { margin-top: 8px; font-size: 11.5px; color: var(--muted); }
   .rule code { font-family: ui-monospace, Menlo, Consolas, monospace; }
+
+  /* 단어 문제 (잠금을 켠 사람에게만). 맞혀도 사이트는 열리지 않는다 */
+  .quiz { margin-top: 26px; padding-top: 22px; border-top: 1px dashed var(--line); }
+  .quiz .qLabel { font-size: 12px; color: var(--muted); margin-bottom: 12px; }
+  .qWord { font-size: 22px; font-weight: 700; letter-spacing: -.3px; word-break: keep-all; }
+  .qIpa { font-size: 15px; margin-top: 5px;
+    font-family: "Gentium Plus", "Charis SIL", "DejaVu Sans", "Segoe UI", system-ui, sans-serif; }
+  .qRead { font-size: 12.5px; color: var(--muted); margin-top: 5px; }
+  .qOpts { display: grid; gap: 7px; margin-top: 16px; text-align: left; }
+  .qOpts button {
+    width: 100%; white-space: normal; line-height: 1.45; padding: 10px 13px; font: inherit; font-size: 14px;
+    border: 1px solid var(--line); border-radius: 10px; background: var(--bg); color: var(--fg); cursor: pointer;
+  }
+  .qOpts button:hover:not(:disabled) { border-color: var(--muted); }
+  .qOpts button:disabled { cursor: default; }
+  .qOpts button.right { border-color: var(--ok); color: var(--ok); }
+  .qOpts button.wrong { border-color: var(--accent); color: var(--accent); }
+  .qMsg { min-height: 20px; margin-top: 10px; font-size: 13px; }
+  .qMsg.ok { color: var(--ok); } .qMsg.err { color: var(--accent); }
 
   .foot { margin-top: 26px; font-size: 12px; color: var(--muted); }
   .foot b { color: var(--accent); font-weight: 600; }
@@ -60,8 +79,17 @@
 <body>
   <div class="card">
     <div class="emoji" id="emoji">□</div>
-    <h1 id="title">잠깐! 지금은 접속할 수 없어요</h1>
-    <p class="message" id="message"></p>
+    <h1 id="title">잠깐</h1>
+    <p class="message" id="message">지금 해야 할 일로 돌아가 볼까요?</p>
+
+    <div class="quiz" id="quiz" hidden>
+      <div class="qLabel">사이트는 열리지 않아도, 단어 하나는 남아요</div>
+      <div class="qWord" id="qWord"></div>
+      <div class="qIpa" id="qIpa"></div>
+      <div class="qRead" id="qRead"></div>
+      <div class="qOpts" id="qOpts"></div>
+      <div class="qMsg" id="qMsg"></div>
+    </div>
 
     <div class="urlbox" id="urlbox" hidden>
       <div class="label">차단된 주소</div>
@@ -77,6 +105,8 @@
       주소창에 주소를 다시 입력해 보세요.
     </div>
   </div>
+  <script src="common.js"></script>
+  <script src="words.js"></script>
   <script src="blocked.js"></script>
 </body>
 </html>

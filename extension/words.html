@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8" />
-<title>딴짓 차단기 — 동기화 · 백업</title>
+<title>잠금 문제 단어 · 딴짓 차단기</title>
 <style>
   :root {
     --bg: #f6f7f9; --card: #ffffff; --fg: #1f2328; --muted: #6b7280; --line: #e5e7eb;
@@ -87,6 +87,13 @@
     width: 100%; min-height: 110px; padding: 9px 10px; font: inherit; font-size: 12.5px; resize: vertical;
     border: 1px solid var(--line); border-radius: 8px; background: var(--card); color: var(--fg);
   }
+  .repLine { display: flex; align-items: center; gap: 8px; font-size: 13.5px; margin-bottom: 10px; flex-wrap: wrap; }
+  #repPreview { margin-top: 10px; font-size: 12.5px; max-height: 260px; overflow-y: auto;
+    border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; }
+  #repPreview div { padding: 3px 0; border-bottom: 1px solid var(--line); }
+  #repPreview div:last-child { border-bottom: none; }
+  #repPreview b { font-weight: 600; }
+  #repPreview span { color: var(--muted); }
   .fileRow { margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--line); }
   .qProg { font-size: 13px; font-weight: 600; color: var(--ok); margin: -10px 0 14px; font-variant-numeric: tabular-nums; }
   .qProg:empty { display: none; }
@@ -121,7 +128,6 @@
   }
   .hbody .none { color: var(--muted); }
   .hbody .row { margin-top: 4px; }
-  .hbody .devNote { font-size: 11.5px; color: var(--muted); margin-top: 8px; line-height: 1.5; }
   .hdev + .tag { margin-left: 2px; }
   .empty { color: var(--muted); font-size: 13px; padding: 6px 0; }
   .hbody .diff { color: var(--muted); margin-bottom: 8px; }
@@ -153,8 +159,8 @@
   <header>
     <img src="icons/icon48.png" alt="">
     <div>
-      <h1 id="pageTitle">동기화 · 백업</h1>
-      <div class="sub" id="pageSub">기기마다 동기화를 켜고 끄고, 예전 목록으로 되돌릴 수 있습니다</div>
+      <h1 id="pageTitle">잠금 문제 단어</h1>
+      <div class="sub" id="pageSub">잠금을 풀 때 나오는 단어 리스트를 바로 고칩니다 · 이 기기에만 저장됩니다</div>
     </div>
   </header>
 
@@ -172,74 +178,86 @@
   </section>
 
   <div id="main" hidden>
-    <!-- 동기화된 기기 -->
-    <section class="card" id="devCard">
-      <h2>동기화된 기기</h2>
+    <!-- 대표 단어 리스트 -->
+    <section class="card" id="repCard">
+      <h2>대표 단어 리스트</h2>
       <p class="desc">
-        기기마다 <b>지금 차단·예외 목록</b>을 보여줍니다. 목록이 바뀌면 자동으로 최신 상태가 됩니다.
-        줄을 누르면 목록이 펼쳐집니다.
+        단어 리스트는 기기마다 따로 저장됩니다. 대신 <b>대표 단어 리스트</b>가 하나 있어서, 누구나 원할 때 자기 단어 리스트를 올리고
+        다른 기기에서 원할 때 내려받을 수 있습니다. 내려받기 전까지 각 기기의 단어 리스트는 바뀌지 않습니다.
       </p>
-      <div id="devList"></div>
-      <div class="msg" id="devMsg"></div>
-    </section>
-
-    <!-- 이전 목록 보관함 -->
-    <section class="card" id="verCard">
-      <h2>이전 목록 보관함</h2>
-      <p class="desc">
-        차단·예외 목록을 고치면, <b>고치기 전 목록</b>이 자동으로 한 줄씩 남습니다. 줄을 눌러 그때 목록을 확인하고,
-        <b>그 목록으로 되돌릴 수 있습니다.</b><br>
-        10분 안에 여러 번 고치면 <b>맨 처음 고치기 전 목록 하나만</b> 남습니다. 기록은 최근 30개까지 보관합니다.
-      </p>
-      <div id="verList"></div>
-      <div class="msg" id="verMsg"></div>
-    </section>
-
-    <!-- 파일 -->
-    <section class="card">
-      <h2>엑셀 파일</h2>
-      <p class="desc">차단 목록 · 예외 목록을 내 컴퓨터에 .xlsx 파일로 저장하거나, 저장해둔 파일을 불러옵니다.</p>
-      <div class="row">
-        <button class="primary" id="exportBtn">엑셀로 내보내기</button>
-        <button id="importBtn">엑셀 파일 불러오기</button>
-        <input type="file" id="fileInput" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>
+      <div class="repLine">
+        <span id="repInfo"></span>
+        <span id="repSame" class="tag" hidden>내 단어 리스트와 같음</span>
       </div>
-      <div class="msg" id="fileMsg"></div>
+      <div class="row" id="repActions"></div>
+      <div id="repPreview" hidden></div>
+      <div class="msg" id="repMsg"></div>
     </section>
 
-    <!-- 권한 -->
-    <section class="card" id="permCard" hidden>
-      <h2>사이트 권한이 필요합니다</h2>
-      <p class="desc" id="permDesc"></p>
-      <button class="primary" id="permBtn">권한 한 번에 허용</button>
-      <div class="msg" id="permMsg"></div>
+    <!-- 단어 -->
+    <section class="card">
+      <h2>단어 목록</h2>
+      <p class="desc" id="wordDesc"></p>
+
+      <p class="wNote" id="wordNote"></p>
+      <div class="wHead"><span></span><span>단어</span><span>언어</span><span>발음기호</span><span>한국어 발음</span><span></span></div>
+      <div id="wordTable"></div>
+
+      <div class="row">
+        <button id="wordAddBtn">+ 단어 추가</button>
+        <button id="wordPasteToggle">붙여넣기로 추가</button>
+        <button id="wordCopyBtn">표 복사</button>
+      </div>
+      <div id="wordPasteBox" hidden>
+        <textarea id="wordPasteArea" placeholder="엑셀이나 구글 시트에서 복사한 줄을 여기에 붙여넣으세요.&#10;칸 순서: 단어 · 언어 · 발음기호 · 한국어 발음 · 뜻&#10;두 칸만 있으면 단어 · 뜻으로 읽습니다. 첫 줄이 제목(단어…)이면 건너뜁니다."></textarea>
+        <div class="row" style="margin-top:6px">
+          <button class="primary" id="wordPasteAddBtn">표에 추가</button>
+          <button id="wordPasteCancel">닫기</button>
+        </div>
+      </div>
+
+      <div class="wSave">
+        <button class="primary" id="wordSaveBtn" disabled>저장</button>
+        <button id="wordUndoBtn" disabled>변경 취소</button>
+        <span class="dirty" id="wordDirty" hidden>저장하지 않은 변경이 있습니다</span>
+      </div>
+      <div class="msg" id="wordMsg"></div>
+
+      <div class="row fileRow">
+        <button id="wordExportBtn">단어 엑셀로 내보내기</button>
+        <button id="wordImportBtn">단어 엑셀 불러오기</button>
+        <button id="resetWordsBtn">기본 단어로 되돌리기</button>
+        <input type="file" id="wordFileInput" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>
+      </div>
+      <p class="hint">
+        칸을 눌러 바로 고치고 <b>저장</b>을 누르세요. 엑셀에서 여러 줄을 복사해 칸에 바로 붙여넣어도 줄이 추가됩니다.<br>
+        단어와 뜻은 꼭 채워야 하고, 언어·발음기호·한국어 발음은 비워도 됩니다.
+        정답은 그 줄의 뜻이고 나머지 보기 셋은 다른 줄의 뜻에서 가져오므로, 단어가 최소 네 개는 있어야 합니다.<br>
+        단어 리스트는 <b>이 기기에만</b> 저장됩니다. 다른 기기와 같은 단어 리스트를 쓰려면 위의 <b>대표 단어 리스트</b>로 올리고 그 기기에서 내려받으세요.
+        [표 복사]나 단어 엑셀 파일로 옮겨도 됩니다.
+      </p>
     </section>
 
-    <p class="hint">
-      목록 파일에는 차단 목록 · 예외 목록이 들어갑니다. 잠금 문제 단어는 팝업 <b>설정 → 잠금 문제 단어</b>에서 고칩니다.<br>
-      '차단목록'·'예외목록' 시트의 A열에 도메인을 한 줄에 하나씩 적으면 됩니다.
-    </p>
   </div>
 </div>
 
-<!-- 불러오기 확인 -->
-<dialog id="dlg">
+<!-- 단어 불러오기 확인 -->
+<dialog id="dlgW">
   <div class="dlg">
-    <h3>불러오기</h3>
-    <div class="from" id="dlgFrom"></div>
+    <h3>단어 불러오기</h3>
+    <div class="from" id="wFrom"></div>
     <table class="cmp">
       <thead><tr><th></th><th>현재</th><th>파일</th><th>합치면</th></tr></thead>
       <tbody>
-        <tr><td>차단 목록</td><td class="n" id="cB0"></td><td class="n" id="cB1"></td><td class="n" id="cB2"></td></tr>
-        <tr><td>예외 목록</td><td class="n" id="cA0"></td><td class="n" id="cA1"></td><td class="n" id="cA2"></td></tr>
+        <tr><td>잠금 문제 단어</td><td class="n" id="wC0"></td><td class="n" id="wC1"></td><td class="n" id="wC2"></td></tr>
       </tbody>
     </table>
-    <div class="invalid" id="dlgInvalid" hidden></div>
+    <div class="invalid" id="wInvalid" hidden></div>
     <div class="choice">
-      <button id="mergeBtn"><b>합치기</b><span>지금 목록은 그대로 두고, 파일에만 있는 주소를 추가합니다.</span></button>
-      <button id="overwriteBtn" class="danger"><b>덮어쓰기</b><span id="overwriteDesc">지금 목록을 지우고 파일 내용으로 바꿉니다.</span></button>
+      <button id="wMergeBtn"><b>합치기</b><span>지금 단어는 그대로 두고, 파일에만 있는 단어를 추가합니다.</span></button>
+      <button id="wReplaceBtn" class="danger"><b>바꾸기</b><span>지금 단어를 지우고 파일 단어로 바꿉니다.</span></button>
     </div>
-    <div class="row" style="justify-content:flex-end"><button id="cancelBtn">취소</button></div>
+    <div class="row" style="justify-content:flex-end"><button id="wCancelBtn">취소</button></div>
   </div>
 </dialog>
 
@@ -247,6 +265,6 @@
 <script src="words.js"></script>
 <script src="xlsx.js"></script>
 <script src="pagekit.js"></script>
-<script src="options.js"></script>
+<script src="wordedit.js"></script>
 </body>
 </html>

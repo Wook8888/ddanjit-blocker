@@ -80,7 +80,13 @@ function renderQuestion() {
   return true;
 }
 
-function answer(picked, box) {
+async function renderProgress() {
+  const need = quizNeed(state);
+  $("lockNeed").textContent = quizHintText(need);
+  $("qProg").textContent = quizProgText(Math.min(await getQuizDone(), need), need);
+}
+
+async function answer(picked, box) {
   if (answering) return;
   answering = true;
   const correct = picked === currentQ.answer;
@@ -93,18 +99,29 @@ function answer(picked, box) {
 
   if (correct) {
     setMsg($("lockMsg"), "");
+    const need = quizNeed(state);
+    const done = (await getQuizDone()) + 1;
+    if (done < need) {
+      await setQuizDone(done);
+      await renderProgress();
+    }
     setTimeout(async () => {
       answering = false;
-      await markUnlocked();
-      await showMain();
+      if (done >= need) {
+        await markUnlocked();
+        await showMain();
+      } else {
+        renderQuestion();
+      }
     }, 380);
   } else {
-    setMsg($("lockMsg"), "다시 한 문제 더.", "err");
+    const sec = wrongPauseSec(state);
+    setMsg($("lockMsg"), `틀렸어요. 초록색이 정답 · ${sec}초 뒤 다음 문제`, "err");
     setTimeout(() => {
       answering = false;
       setMsg($("lockMsg"), "");
       renderQuestion();
-    }, 950);
+    }, sec * 1000); // 틀리면 정답 뜻을 볼 수 있게 정한 시간만큼 멈춘다
   }
 }
 
@@ -212,6 +229,8 @@ function renderSettings() {
   $("enabledToggle").checked = state.enabled;
   $("statusText").textContent = state.enabled ? "차단 작동 중" : "차단 일시 중지됨";
   $("lockToggle").checked = !!state.lockOn;
+  $("quizCount").value = String(quizNeed(state));
+  $("wrongPause").value = String(wrongPauseSec(state));
   $("syncToggle").checked = state.syncOn !== false;
   if (document.activeElement !== $("devName")) $("devName").value = state.deviceName || "";
 }
@@ -273,6 +292,8 @@ async function showMain() {
 function showLock() {
   $("main").classList.add("hidden");
   $("lock").classList.remove("hidden");
+  renderProgress();
+  setupPauseSelect($("lockPause"), state);
   if (!renderQuestion()) {
     // 문제를 만들 단어가 없으면 잠그지 않는다 (잠겨서 못 들어가는 일 방지)
     markUnlocked().then(showMain);
@@ -349,6 +370,10 @@ function wireEvents() {
   });
 
   $("backupBtn").addEventListener("click", () => chrome.runtime.openOptionsPage());
+  $("wordsBtn").addEventListener("click", () => {
+    chrome.tabs.create({ url: chrome.runtime.getURL("words.html") });
+    window.close();
+  });
   $("syncLine").addEventListener("click", () => {
     chrome.tabs.create({ url: chrome.runtime.getURL("options.html#devices") });
     window.close();
@@ -361,6 +386,31 @@ function wireEvents() {
     showMsg($("lockSetMsg"), on
       ? "잠금을 켰습니다. 다음에 열 때 단어 문제가 나옵니다."
       : "잠금을 껐습니다.", "ok");
+  });
+
+  for (let n = 1; n <= QUIZ_MAX; n++) {
+    const o = document.createElement("option");
+    o.value = String(n);
+    o.textContent = n + "개";
+    $("quizCount").appendChild(o);
+  }
+  $("quizCount").addEventListener("change", async (e) => {
+    const n = quizNeed({ quizCount: e.target.value });
+    await save({ quizCount: n });
+    await setQuizDone(0);
+    showMsg($("lockSetMsg"), `잠금을 풀려면 문제 ${n}개를 맞혀야 합니다.`, "ok");
+  });
+
+  for (let n = 1; n <= PAUSE_MAX; n++) {
+    const o = document.createElement("option");
+    o.value = String(n);
+    o.textContent = n + "초";
+    $("wrongPause").appendChild(o);
+  }
+  $("wrongPause").addEventListener("change", async (e) => {
+    const n = wrongPauseSec({ wrongPause: e.target.value });
+    await save({ wrongPause: n });
+    showMsg($("lockSetMsg"), `틀리면 정답을 ${n}초 동안 보여준 뒤 다음 문제로 넘어갑니다.`, "ok");
   });
 
   $("syncToggle").addEventListener("change", async (e) => {
