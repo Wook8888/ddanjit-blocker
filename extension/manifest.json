@@ -2,6 +2,7 @@
   "manifest_version": 3,
   "name": "딴짓 차단기",
   "version": "2.2.0",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAwhe0fC5oe9TmjeM3gw89hY7rCicoAu+zcbxFCUaWFP/2Fyy53tNdlM28kxCL/aiLyXpR2sY7agrElEFdPIc3uiSNrbY8aCVeCSGYqduby3KA6JfddeCtQ3mcyh92O5QfN/vqUg7N2ie7Jmsn+2PLfdepqHSA51F4h7nIfdsEyXP52zIT5/utd2XMpLaTnwisNAG7L8s2YgUvwuQdCBJEeiXd1XIov2dr8ENVyWWODLm+R8C9+2JrylrabtmQSJasTo/9ugnEVV6Oyv4eCYCDOvMdF+yrU3cmqXIFXEfPiBAIklcRpTqb2LRGaif80BgtQ72ELuShqvEkdGjP2NjGsQIDAQAB",
   "description": "차단할 사이트를 적기만 하면 됩니다. 서브도메인까지 한 번에 차단하고, 필요한 곳만 예외로 열어두세요.",
   "permissions": [
     "declarativeNetRequestWithHostAccess",
